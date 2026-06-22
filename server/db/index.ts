@@ -123,23 +123,7 @@ export namespace DB.Tables {
     export const users = TableSchema.users;
     export const sessions = TableSchema.sessions;
     export const passwordResets = TableSchema.passwordResets;
-    export const apiKeys = TableSchema.apiKeys;
 
-    export const publishers = TableSchema.publishers;
-    export const publisherMembers = TableSchema.publisherMembers;
-
-    export const roleAssignments = TableSchema.roleAssignments;
-
-    export const packages = TableSchema.packages;
-    export const packageReleases = TableSchema.packageReleases;
-    export const packagesFullView = TableSchema.packagesFullView;
-
-    export const stablePromotionRequests = TableSchema.stablePromotionRequests;
-
-    export const os_releases = TableSchema.os_releases;
-
-    export const scheduled_tasks = TableSchema.scheduled_tasks;
-    export const scheduled_tasks_paused_state = TableSchema.scheduled_tasks_paused_state;
 
     export const metadata = TableSchema.metadata;
 }
@@ -148,23 +132,7 @@ export namespace DB.Models {
     export type User = typeof DB.Tables.users.$inferSelect;
     export type Session = typeof DB.Tables.sessions.$inferSelect;
     export type PasswordReset = typeof DB.Tables.passwordResets.$inferSelect;
-    export type ApiKey = typeof DB.Tables.apiKeys.$inferSelect;
-
-    export type Publisher = typeof DB.Tables.publishers.$inferSelect;
-    export type PublisherMember = typeof DB.Tables.publisherMembers.$inferSelect;
-
-    export type RoleAssignment = typeof DB.Tables.roleAssignments.$inferSelect;
-
-    export type Package = typeof DB.Tables.packages.$inferSelect;
-    export type PackageRelease = typeof DB.Tables.packageReleases.$inferSelect;
-    export type PackageFullView = typeof DB.Tables.packagesFullView.$inferSelect;
-
-    export type StablePromotionRequest = typeof DB.Tables.stablePromotionRequests.$inferSelect;
-
-    export type OSRelease = typeof DB.Tables.os_releases.$inferSelect;
-
-    export type ScheduledTask = typeof DB.Tables.scheduled_tasks.$inferSelect;
-    export type ScheduledTaskPausedState = typeof DB.Tables.scheduled_tasks_paused_state.$inferSelect;
+    
 
     export type Metadata = typeof DB.Tables.metadata.$inferSelect;
 }
