@@ -1,0 +1,170 @@
+import { drizzle } from 'drizzle-orm/bun-sqlite';
+import * as TableSchema from './schema';
+import { randomBytes as crypto_randomBytes, createHash as crypto_createHash } from 'crypto';
+import { type DrizzleDB } from './utils';
+import { Logger } from '../utils/logger';
+import { eq } from 'drizzle-orm';
+import { ConfigHandler } from '../utils/config';
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { mkdir as fs_mkdir } from 'fs/promises';
+import { dirname as path_dirname } from 'path';
+
+export class DB {
+
+    protected static db: DrizzleDB;
+
+    static async init(
+        path: string,
+        autoMigrate: boolean = false,
+        configBaseDir: string
+    ) {
+
+        await fs_mkdir(path_dirname(path), { recursive: true });
+
+        this.db = drizzle(path);
+        if (autoMigrate) {
+            Logger.info("Running database migrations...");
+            await migrate(this.db, { migrationsFolder: "drizzle" });
+            Logger.info("Database migrations completed.");
+        }
+
+        await this.createInitialAdminUserIfNeeded(configBaseDir);
+        await this.createInitialOSReleasesMetaIfNeeded();
+
+        Logger.info(`Database initialized at ${path}`);
+    }
+
+    static async createInitialAdminUserIfNeeded(configBaseDir: string) {
+        const usersTableEmpty = (await this.db.select().from(DB.Tables.users).limit(1)).length === 0;
+        if (!usersTableEmpty) return;
+
+        const username = "admin";
+
+        const admin_user_id = await this.db.insert(DB.Tables.users).values({
+            username,
+            email: "admin@leios.local",
+            password_hash: await Bun.password.hash(crypto_randomBytes(32).toString('hex')),
+            display_name: "Default Administrator",
+            role: "admin"
+        }).returning().get().id;
+
+        const passwordResetToken = crypto_randomBytes(64).toString('hex');
+        await this.db.insert(DB.Tables.passwordResets).values({
+            token: crypto_createHash('sha256').update(passwordResetToken).digest('hex'),
+            user_id: admin_user_id,
+            expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 Days
+        });
+
+        const DASHBOARD_URL = ConfigHandler.getConfig()?.LRA_HUB_URL || "https://{DASHBOARD_URL}";
+
+        Bun.write(`${configBaseDir}/initial_admin_password_reset_token.txt`, `${DASHBOARD_URL}/auth/reset-password?token=${passwordResetToken}`, {
+            mode: 0o600,
+            createPath: true
+        });
+
+        Logger.info(
+            `Initial admin user created with username: ${username}.\n` +
+            `You can set the password under ${DASHBOARD_URL}/auth/reset-password?token=${passwordResetToken}\n` +
+            `The url is also safed at ${configBaseDir}/initial_admin_password_reset_token.txt\n`
+        );
+    }
+
+    static async createInitialOSReleasesMetaIfNeeded() {
+
+        // const initalReleaseExists = await this.db.select().from(DB.Tables.os_releases).where(
+        //     eq(DB.Tables.os_releases.version, "0000.00.000")
+        // ).get();
+
+        // if (!initalReleaseExists) {
+        //     const taskID = await this.db.insert(DB.Tables.scheduled_tasks).values({
+        //         function: "os-release:create",
+        //         status: "completed",
+        //         created_at: new Date(0).getTime(),
+        //         args: {}
+        //     }).returning().get().id;
+
+        //     await this.db.insert(DB.Tables.os_releases).values({
+        //         version: "0000.00.000",
+        //         changelog: "Initial placeholder release",
+        //         taskID,
+        //         created_at: new Date(0).getTime(),
+        //     });
+        //     Logger.info("Created initial OS release metadata entry (version 0000.00.000)");
+        // }
+
+        // no longr used, remove any existing placeholder entries
+        // await this.db.delete(DB.Tables.os_releases).where(
+        //     eq(DB.Tables.os_releases.version, "0000.00.0")
+        // );
+        // await this.db.delete(DB.Tables.os_releases).where(
+        //     eq(DB.Tables.os_releases.version, "0000.00.00")
+        // );
+    }
+
+    static instance() {
+        if (!this.db) {
+            throw new Error('Database not initialized. Call DB.init() first.');
+        }
+        return DB.db;
+    }
+
+    static async close() {
+        if (!this.db) return;
+        
+        Logger.info("Database connection closed.");
+        this.db.$client.close();
+        await Bun.sleep(100);
+    }
+
+}
+
+
+export namespace DB.Tables {
+    export const users = TableSchema.users;
+    export const sessions = TableSchema.sessions;
+    export const passwordResets = TableSchema.passwordResets;
+    export const apiKeys = TableSchema.apiKeys;
+
+    export const publishers = TableSchema.publishers;
+    export const publisherMembers = TableSchema.publisherMembers;
+
+    export const roleAssignments = TableSchema.roleAssignments;
+
+    export const packages = TableSchema.packages;
+    export const packageReleases = TableSchema.packageReleases;
+    export const packagesFullView = TableSchema.packagesFullView;
+
+    export const stablePromotionRequests = TableSchema.stablePromotionRequests;
+
+    export const os_releases = TableSchema.os_releases;
+
+    export const scheduled_tasks = TableSchema.scheduled_tasks;
+    export const scheduled_tasks_paused_state = TableSchema.scheduled_tasks_paused_state;
+
+    export const metadata = TableSchema.metadata;
+}
+
+export namespace DB.Models {
+    export type User = typeof DB.Tables.users.$inferSelect;
+    export type Session = typeof DB.Tables.sessions.$inferSelect;
+    export type PasswordReset = typeof DB.Tables.passwordResets.$inferSelect;
+    export type ApiKey = typeof DB.Tables.apiKeys.$inferSelect;
+
+    export type Publisher = typeof DB.Tables.publishers.$inferSelect;
+    export type PublisherMember = typeof DB.Tables.publisherMembers.$inferSelect;
+
+    export type RoleAssignment = typeof DB.Tables.roleAssignments.$inferSelect;
+
+    export type Package = typeof DB.Tables.packages.$inferSelect;
+    export type PackageRelease = typeof DB.Tables.packageReleases.$inferSelect;
+    export type PackageFullView = typeof DB.Tables.packagesFullView.$inferSelect;
+
+    export type StablePromotionRequest = typeof DB.Tables.stablePromotionRequests.$inferSelect;
+
+    export type OSRelease = typeof DB.Tables.os_releases.$inferSelect;
+
+    export type ScheduledTask = typeof DB.Tables.scheduled_tasks.$inferSelect;
+    export type ScheduledTaskPausedState = typeof DB.Tables.scheduled_tasks_paused_state.$inferSelect;
+
+    export type Metadata = typeof DB.Tables.metadata.$inferSelect;
+}
