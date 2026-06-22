@@ -7,7 +7,7 @@ definePageMeta({
 });
 
 useSeoMeta({
-    title: "Forgot Password | LeiOS Hub",
+    title: "Forgot Password | MindCode",
     description: "Reset your password",
 });
 
@@ -115,3 +115,5 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         </div>
     </div>
 </template>
+todo: change thius page
+forget passwort: has to be reset by administartor (admin create link) or if administartor account reset by cli

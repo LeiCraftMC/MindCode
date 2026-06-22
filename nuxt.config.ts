@@ -17,30 +17,13 @@ export default defineNuxtConfig({
 	],
 
 	nitro: {
-		preset: 'bun',
-
-		devProxy: process.env.USE_DEV_PROXY === "true" ? {
-			"/api/proxy": {
-				target: process.env.DEV_PROXY_TARGET || "https://api.leios.dev",
-				changeOrigin: true
-			}
-		} : {}
+		preset: 'bun'
 	},
 
 	runtimeConfig: {
 		public: {
-			apiUrl: process.env.LEIOS_API_URL || 'http://localhost:12151',
-			appUrl: process.env.LEIOS_HUB_APP_URL || 'http://localhost:12153',
-			isSignupEnabled: process.env.LEIOS_HUB_APP_ENABLE_SIGNUP === 'true' ? true : false,
-		}
-	},
-
-	vite: {
-		server: {
-			allowedHosts: [
-				"leios-hub-website-test.tun.is-on.net"
-			]
-
+			apiUrl: process.env.MINDCODE_API_URL || 'http://localhost:13338',
+			appUrl: process.env.MINDCODE_APP_URL || 'http://localhost:13338',
 		}
 	},
 

@@ -1,7 +1,6 @@
 import { expect } from "bun:test";
-import { API } from "../../src/api";
-import { z, ZodType } from "zod";
-import { Logger } from "../../src/utils/logger";
+import { API } from "../../server/lib/api";
+import { Logger } from "../../server/utils/logger";
 
 type HeadersInit = RequestInit["headers"];
 
@@ -11,7 +10,6 @@ export async function makeAPIRequest<ReturnBody = any>(
         method?: "GET" | "POST" | "PUT" | "DELETE",
         authToken?: string,
         body?: Record<string, any>,
-        expectedBodySchema?: ZodType<ReturnBody>,
         additionalOptions?: RequestInit
     } = {},
     expectedCode?: number
@@ -66,19 +64,6 @@ export async function makeAPIRequest<ReturnBody = any>(
 
     const contentType = res.headers.get("content-type") || "";
     const resBody = contentType.includes("application/json") ? await res.json() as any : null;
-
-    if (opts.expectedBodySchema && resBody) {
-
-        const parseResult = opts.expectedBodySchema.safeParse(resBody.data || {});
-        if (parseResult.success) {
-            expect(parseResult.success).toBe(true);
-            return parseResult.data;
-        } else {
-            Logger.error("Response body did not match expected schema:", parseResult.error.message);
-            //@ts-ignore
-            expect(parseResult.success).toBe(true);
-        }
-    }
 
     if (resBody && typeof resBody === "object" && "data" in resBody) {
         return (resBody as any).data as ReturnBody;

@@ -7,7 +7,7 @@ definePageMeta({
 });
 
 useSeoMeta({
-    title: "Reset Password | LeiOS Hub",
+    title: "Reset Password | MindCode",
     description: "Reset your password",
 });
 

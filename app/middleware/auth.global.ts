@@ -2,7 +2,7 @@ import { useUserInfoStore } from "~/composables/stores/useUserStore";
 
 export default defineNuxtRouteMiddleware(async(to) => {
 
-    const token = useCookie("leioshub_session_token").value;
+    const token = useCookie("mindcode_session_token").value;
 
     if (to.path.startsWith('/auth')) {
         if (!token) {
@@ -16,7 +16,7 @@ export default defineNuxtRouteMiddleware(async(to) => {
         }
 
         // Token exists but is invalid — clear it and stay on auth page
-        useCookie("leioshub_session_token").value = null;
+        useCookie("mindcode_session_token").value = null;
         return;
     }
 
@@ -31,7 +31,7 @@ export default defineNuxtRouteMiddleware(async(to) => {
 
         if (!store.isValid(user)) {
             // Token exists but is invalid/expired — clear and redirect to login
-            useCookie("leioshub_session_token").value = null;
+            useCookie("mindcode_session_token").value = null;
             return navigateTo('/auth/login?url=' + encodeURIComponent(to.fullPath));
         }
 

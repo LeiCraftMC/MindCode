@@ -1,13 +1,7 @@
-import { API } from "./api";
-import { AptlyAPIServer } from "./aptly/server";
+import { API } from "./lib/api";
 import { DB } from "./db";
 import { ConfigHandler } from "./utils/config";
 import { Logger } from "./utils/logger";
-import { TaskScheduler } from "./tasks";
-import { LiveRepoUtils } from "./utils/live-repo";
-import { Utils } from "./utils";
-import { PermissionHelper } from "./utils/permission-helper";
-import { EmailService } from "./api/utils/email";
 
 export class Main {
 
@@ -21,56 +15,15 @@ export class Main {
 
         const config = await ConfigHandler.loadConfig();
 
-        Logger.setLogLevel(config.LRA_LOG_LEVEL ?? "info");
+        Logger.setLogLevel(config.MINDCODE_LOG_LEVEL ?? "info");
 
         await DB.init(
-            config.LRA_DB_PATH ?? "./data/db.sqlite",
-            config.LRA_DB_AUTO_MIGRATE,
-            config.LRA_CONFIG_BASE_DIR ?? "./config"
+            config.MINDCODE_DB_PATH ?? "./data/db.sqlite",
+            config.MINDCODE_DB_AUTO_MIGRATE,
+            config.MINDCODE_CONFIG_BASE_DIR ?? "./config"
         );
 
-        await PermissionHelper.init();
-
-        EmailService.init();
-
-        await Utils.ensureDirectoryExists(config.LRA_LOG_DIR ?? "./data/logs");
-
-        // start task scheduler
-        await TaskScheduler.processQueue();
-
-        await AptlyAPIServer.init({
-            aptlyRoot: config.LRA_APTLY_ROOT ?? "./data/aptly",
-            aptlyPort: parseInt(config.LRA_APTLY_PORT ?? "12150"),
-            s3Settings: {
-                endpoint: config.LRA_S3_ENDPOINT,
-                region: config.LRA_S3_REGION,
-                bucket: config.LRA_S3_BUCKET,
-                prefix: config.LRA_S3_PREFIX || "leios/",
-                accessKeyId: config.LRA_S3_ACCESS_KEY_ID,
-                secretAccessKey: config.LRA_S3_SECRET_ACCESS_KEY
-            },
-            keySettings: {
-                publicKeyPath: config.LRA_PUBLIC_KEY_PATH ?? "./config/keys/public-key.gpg",
-                privateKeyPath: config.LRA_PRIVATE_KEY_PATH ?? "./config/keys/private-key.gpg",
-            }
-        });
-
-        await LiveRepoUtils.uploadAdditionalFilesIfNeeded({
-            endpoint: config.LRA_S3_ENDPOINT,
-            region: config.LRA_S3_REGION,
-            bucket: config.LRA_S3_BUCKET,
-            accessKeyId: config.LRA_S3_ACCESS_KEY_ID,
-            secretAccessKey: config.LRA_S3_SECRET_ACCESS_KEY
-        }, config.LRA_PUBLIC_KEY_PATH ?? "./config/keys/public-key.gpg");
-
-        await API.init([config.LRA_HUB_URL || "https://hub.leios.dev"], config.LRA_API_DISABLE_DOCS === true);
-
-        await AptlyAPIServer.start();
-
-        await API.start(
-            parseInt(config.LRA_API_PORT ?? "12151"),
-            config.LRA_API_HOST ?? "::"
-        );
+        await API.init(config.MINDCODE_API_DISABLE_DOCS === true);
 
     }
 
@@ -79,8 +32,6 @@ export class Main {
             Logger.log(`Received ${type}, shutting down...`);
 
             await API.stop();
-            await AptlyAPIServer.stop(type);
-            await TaskScheduler.stopProcessing();
             await DB.close();
 
             Logger.log("Shutdown complete, exiting.");
@@ -89,7 +40,7 @@ export class Main {
             Logger.critical("Error during shutdown, forcing exit");
             Main.forceShutdown();
         }
-        }
+    }
 
     private static forceShutdown() {
         process.once("SIGTERM", ()=>{});
@@ -112,4 +63,5 @@ export class Main {
 
 }
 
-Main.main()
+// Standalone entry point removed — the Hono app is now initialized by
+// server/plugins/hono.ts and served via server/routes/api/[...].ts within Nitro.

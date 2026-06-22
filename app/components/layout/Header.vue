@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import LeiOSLogo from '../img/LeiOSLogo.vue';
+import MindCodeLogo from '../img/MindCodeLogo.vue';
 import type { GetAccountResponses } from '~/api-client';
 import type { UnwrapRef } from 'vue';
 import { useUserInfoStore } from '~/composables/stores/useUserStore';
@@ -42,12 +42,9 @@ const redirectQuery = computed(() => encodeURIComponent(route.fullPath))
     <UHeader class="backdrop-blur-xl">
         <template #left>
             <div class="flex items-center gap-2">
-                <NuxtLink to="https://www.leios.dev" target="_blank">
-                    <LeiOSLogo class="h-8 w-auto" />
-                </NuxtLink>
                 <NuxtLink to="/" class="flex items-center gap-2 text-2xl font-bold leading-none">
-                    <span>/</span>
-                    <span>Hub</span>
+                    <MindCodeLogo class="h-8 w-auto" />
+                    <span>MindCode</span>
                 </NuxtLink>
             </div>
         </template>

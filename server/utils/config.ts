@@ -106,39 +106,22 @@ export type ParsedConfig = ConfigLike<typeof ConfigHandler.schema.schema>;
 export class ConfigHandler {
 
     private static schema = new ConfigSchema()
-        .add("LRA_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
+        .add("MINDCODE_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
 
-        .add("LRA_HUB_URL", false)
+        .add("MINDCODE_HOST", false)
+        .add("MINDCODE_PORT", false)
+        .add("MINDCODE_API_DISABLE_DOCS", false, [true, false])
 
-        .add("LRA_API_HOST", false)
-        .add("LRA_API_PORT", false)
-        .add("LRA_API_DISABLE_DOCS", false, [true, false])
+        .add("MINDCODE_LOG_DIR", false)
 
-        .add("LRA_LOG_DIR", false)
+        .add("MINDCODE_DB_PATH", false)
+        .add("MINDCODE_DB_AUTO_MIGRATE", false, [true, false])
 
-        .add("LRA_DB_PATH", false)
-        .add("LRA_DB_AUTO_MIGRATE", false, [true, false])
+        .add("MINDCODE_CONFIG_BASE_DIR", false)
 
-        .add("LRA_APTLY_ROOT", false)
-        .add("LRA_APTLY_PORT", false)
-
-        .add("LRA_CONFIG_BASE_DIR", false)
-        .add("LRA_PRIVATE_KEY_PATH", true)
-        .add("LRA_PUBLIC_KEY_PATH", true)
-
-        .add("LRA_S3_ENDPOINT", true)
-        .add("LRA_S3_REGION", true)
-        .add("LRA_S3_BUCKET", true)
-        .add("LRA_S3_PREFIX", false)
-        .add("LRA_S3_ACCESS_KEY_ID", true)
-        .add("LRA_S3_SECRET_ACCESS_KEY", true)
-
-        .add("LRA_SMTP_HOST", false)
-        .add("LRA_SMTP_PORT", false)
-        .add("LRA_SMTP_USERNAME", false)
-        .add("LRA_SMTP_PASSWORD", false)
-        .add("LRA_SMTP_FROM", false)
-        .add("LRA_SMTP_SECURE", false, [true, false])
+        .add("MINDCODE_APP_URL", false)
+        .add("MINDCODE_API_URL", false)
+        .add("MINDCODE_ENABLE_SIGNUP", false, [true, false])
     ;
 
 

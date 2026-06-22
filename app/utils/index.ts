@@ -118,7 +118,7 @@ export namespace Utils {
 	/**
 	 * Generiert eine URL für eine GitHub-Datei
 	 */
-	export function getGitHubFileUrl(path: string, repo: string = 'LeiOS-project/LeiOS'): string {
+	export function getGitHubFileUrl(path: string, repo: string = 'mindcode/mindcode'): string {
 		const baseUrl = 'https://github.com'
 		return `${baseUrl}/${repo}/blob/main${path}`
 	}

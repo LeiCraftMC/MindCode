@@ -29,7 +29,6 @@ export class DB {
         }
 
         await this.createInitialAdminUserIfNeeded(configBaseDir);
-        await this.createInitialOSReleasesMetaIfNeeded();
 
         Logger.info(`Database initialized at ${path}`);
     }
@@ -42,7 +41,7 @@ export class DB {
 
         const admin_user_id = await this.db.insert(DB.Tables.users).values({
             username,
-            email: "admin@leios.local",
+            email: "admin@mindcode.local",
             password_hash: await Bun.password.hash(crypto_randomBytes(32).toString('hex')),
             display_name: "Default Administrator",
             role: "admin"
@@ -55,50 +54,18 @@ export class DB {
             expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 Days
         });
 
-        const DASHBOARD_URL = ConfigHandler.getConfig()?.LRA_HUB_URL || "https://{DASHBOARD_URL}";
+        const APP_URL = ConfigHandler.getConfig()?.MINDCODE_APP_URL || "https://{APP_URL}";
 
-        Bun.write(`${configBaseDir}/initial_admin_password_reset_token.txt`, `${DASHBOARD_URL}/auth/reset-password?token=${passwordResetToken}`, {
+        Bun.write(`${configBaseDir}/initial_admin_password_reset_token.txt`, `${APP_URL}/auth/reset-password?token=${passwordResetToken}`, {
             mode: 0o600,
             createPath: true
         });
 
         Logger.info(
             `Initial admin user created with username: ${username}.\n` +
-            `You can set the password under ${DASHBOARD_URL}/auth/reset-password?token=${passwordResetToken}\n` +
+            `You can set the password under ${APP_URL}/auth/reset-password?token=${passwordResetToken}\n` +
             `The url is also safed at ${configBaseDir}/initial_admin_password_reset_token.txt\n`
         );
-    }
-
-    static async createInitialOSReleasesMetaIfNeeded() {
-
-        // const initalReleaseExists = await this.db.select().from(DB.Tables.os_releases).where(
-        //     eq(DB.Tables.os_releases.version, "0000.00.000")
-        // ).get();
-
-        // if (!initalReleaseExists) {
-        //     const taskID = await this.db.insert(DB.Tables.scheduled_tasks).values({
-        //         function: "os-release:create",
-        //         status: "completed",
-        //         created_at: new Date(0).getTime(),
-        //         args: {}
-        //     }).returning().get().id;
-
-        //     await this.db.insert(DB.Tables.os_releases).values({
-        //         version: "0000.00.000",
-        //         changelog: "Initial placeholder release",
-        //         taskID,
-        //         created_at: new Date(0).getTime(),
-        //     });
-        //     Logger.info("Created initial OS release metadata entry (version 0000.00.000)");
-        // }
-
-        // no longr used, remove any existing placeholder entries
-        // await this.db.delete(DB.Tables.os_releases).where(
-        //     eq(DB.Tables.os_releases.version, "0000.00.0")
-        // );
-        // await this.db.delete(DB.Tables.os_releases).where(
-        //     eq(DB.Tables.os_releases.version, "0000.00.00")
-        // );
     }
 
     static instance() {
@@ -110,10 +77,10 @@ export class DB {
 
     static async close() {
         if (!this.db) return;
-        
+
         Logger.info("Database connection closed.");
         this.db.$client.close();
-        await Bun.sleep(100);
+        await Bun.sleep(500);
     }
 
 }
@@ -123,8 +90,6 @@ export namespace DB.Tables {
     export const users = TableSchema.users;
     export const sessions = TableSchema.sessions;
     export const passwordResets = TableSchema.passwordResets;
-
-
     export const metadata = TableSchema.metadata;
 }
 
@@ -132,7 +97,5 @@ export namespace DB.Models {
     export type User = typeof DB.Tables.users.$inferSelect;
     export type Session = typeof DB.Tables.sessions.$inferSelect;
     export type PasswordReset = typeof DB.Tables.passwordResets.$inferSelect;
-    
-
     export type Metadata = typeof DB.Tables.metadata.$inferSelect;
 }

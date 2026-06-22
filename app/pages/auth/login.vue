@@ -11,7 +11,7 @@ definePageMeta({
 });
 
 useSeoMeta({
-    title: "Login | LeiOS Hub",
+    title: "Login | MindCode",
     description: "Login to your account",
 });
 
@@ -71,7 +71,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     if (result.success) {
         updateAPIClient(result.data.token);
 
-        const sessionToken = useCookie("leioshub_session_token", {
+        const sessionToken = useCookie("mindcode_session_token", {
             path: "/",
             secure: true,
             sameSite: "lax",

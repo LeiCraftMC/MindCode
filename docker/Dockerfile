@@ -8,6 +8,6 @@ COPY ./build/bin/leios-api-linux-x64-baseline /usr/local/bin/leios-api
 
 RUN chmod u+x /usr/local/bin/leios-api
 
-EXPOSE 12151/tcp
+EXPOSE 13338/tcp
 
 ENTRYPOINT ["leios-api"]

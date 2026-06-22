@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
 import UserMenu from "~/components/dashboard/UserMenu.vue";
-import LeiOSLogo from "~/components/img/LeiOSLogo.vue";
-import LeiOSIcon from "~/components/img/LeiOSIcon.vue";
+import MindCodeLogo from "~/components/img/MindCodeLogo.vue";
+import MindCodeIcon from "~/components/img/MindCodeIcon.vue";
 import { useUserInfoStore } from "~/composables/stores/useUserStore";
 
 const userInfoStore = useUserInfoStore();
@@ -148,10 +148,8 @@ const sidebarItems = computed(() => {
         >
             <template #header="{ collapsed }">
                 <NuxtLink to="/" :class="`${!collapsed ? 'ms-2.5' : ''} flex items-center gap-1.5`">
-                    <LeiOSLogo v-if="!collapsed" class="h-6 w-auto flex-none" />
-                    <span v-if="!collapsed" class="text-lg font-semibold">/</span>
-                    <span v-if="!collapsed" class="text-lg font-semibold">Hub</span>
-                    <LeiOSIcon v-else class="h-8 w-8" />
+                    <MindCodeLogo v-if="!collapsed" class="h-6 w-auto flex-none" />
+                    <MindCodeIcon v-else class="h-8 w-8" />
                 </NuxtLink>
             </template>
 
