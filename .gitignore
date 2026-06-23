@@ -24,3 +24,6 @@ logs
 !.env.example
 
 tmp-data-*
+
+config
+data

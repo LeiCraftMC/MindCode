@@ -25,6 +25,11 @@ export class Main {
 
         await API.init(config.MINDCODE_API_DISABLE_DOCS === true);
 
+        await API.start(
+            parseInt(config.MINDCODE_PORT || "13338") ?? 13338,
+            config.MINDCODE_HOST ?? "localhost"
+        );
+
     }
 
     private static async gracefulShutdown(type: NodeJS.Signals, code: number) {
@@ -65,3 +70,7 @@ export class Main {
 
 // Standalone entry point removed — the Hono app is now initialized by
 // server/plugins/hono.ts and served via server/routes/api/[...].ts within Nitro.
+
+if (import.meta.main) {
+    await Main.main();
+}
