@@ -1,0 +1,140 @@
+import { useRuntimeAppConfigs } from './useRuntimeAppConfigs';
+import { createEventHook } from '@vueuse/core';
+
+export interface ClaudeWSEvent {
+    type: string;
+    [key: string]: any;
+}
+
+export function useClaudeWebSocket() {
+    const ws = ref<WebSocket | null>(null);
+    const connected = ref(false);
+    const authenticating = ref(false);
+    const authenticated = ref(false);
+    const activeSessionId = ref<string | null>(null);
+    const error = ref<string | null>(null);
+
+    const onEvent = createEventHook<ClaudeWSEvent>();
+
+    const wsUrl = '/ws/claude';
+
+    async function connect(): Promise<void> {
+        if (ws.value?.readyState === WebSocket.OPEN) return;
+
+        return new Promise<void>((resolve, reject) => {
+            try {
+                const socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => {
+                    connected.value = true;
+                    authenticating.value = true;
+                    error.value = null;
+
+                    // Send auth immediately
+                    const token = useCookie('mindcode_session_token').value;
+                    if (!token) {
+                        reject(new Error('No session token found'));
+                        socket.close();
+                        return;
+                    }
+                    socket.send(JSON.stringify({ type: 'auth', token }));
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+
+                        if (msg.type === 'auth_ok') {
+                            authenticated.value = true;
+                            authenticating.value = false;
+                            resolve();
+                        } else if (msg.type === 'init') {
+                            activeSessionId.value = msg.sessionId;
+                        } else if (msg.type === 'error') {
+                            error.value = msg.message;
+                        } else if (msg.type === 'done') {
+                            activeSessionId.value = null;
+                        } else if (msg.type === 'cancelled') {
+                            activeSessionId.value = null;
+                        }
+
+                        onEvent.trigger(msg);
+                    } catch {
+                        // ignore parse errors
+                    }
+                };
+
+                socket.onclose = (event) => {
+                    connected.value = false;
+                    authenticated.value = false;
+                    activeSessionId.value = null;
+                    if (event.code !== 1000 && event.code !== 1001) {
+                        const errMsg = event.reason || `WebSocket closed (code: ${event.code})`;
+                        error.value = errMsg;
+                        if (!authenticated.value) {
+                            reject(new Error(errMsg));
+                        }
+                    }
+                };
+
+                socket.onerror = () => {
+                    // onclose will fire after this with details
+                    if (!authenticated.value) {
+                        reject(new Error('WebSocket connection failed'));
+                    }
+                };
+
+                ws.value = socket;
+            } catch (err: any) {
+                reject(err);
+            }
+        });
+    }
+
+    function send(msg: Record<string, any>) {
+        if (ws.value?.readyState === WebSocket.OPEN) {
+            ws.value.send(JSON.stringify(msg));
+        } else {
+            error.value = 'WebSocket not connected';
+        }
+    }
+
+    function startSession(prompt: string, options?: { projectPath?: string; model?: string; effort?: string }) {
+        send({ type: 'start', prompt, ...options });
+    }
+
+    function sendMessage(content: string) {
+        send({ type: 'message', content });
+    }
+
+    function cancelSession() {
+        send({ type: 'cancel' });
+    }
+
+    function disconnect() {
+        ws.value?.close();
+        ws.value = null;
+        connected.value = false;
+        authenticated.value = false;
+        activeSessionId.value = null;
+    }
+
+    onUnmounted(() => {
+        disconnect();
+    });
+
+    return {
+        connected: readonly(connected),
+        authenticating: readonly(authenticating),
+        authenticated: readonly(authenticated),
+        activeSessionId: readonly(activeSessionId),
+        error: readonly(error),
+        connect,
+        send,
+        startSession,
+        sendMessage,
+        cancelSession,
+        disconnect,
+        onEvent: onEvent.on,
+    };
+}

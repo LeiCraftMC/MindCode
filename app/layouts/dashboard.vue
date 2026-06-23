@@ -11,26 +11,16 @@ const user = await userInfoStore.use();
 const isAdmin = computed(() => user.value?.role === "admin");
 
 const sidebarItems = computed(() => {
-    const devItems: NavigationMenuItem[] = [
+    const mainItems: NavigationMenuItem[] = [
         {
             label: "Overview",
             icon: "i-lucide-layout-dashboard",
-            to: "/dashboard",
+            to: "/",
         },
         {
-            label: "Packages",
-            icon: "i-lucide-package",
-            to: "/dashboard/packages",
-        },
-        {
-            label: "Publishers",
-            icon: "i-lucide-building",
-            to: "/dashboard/publishers",
-        },
-        {
-            label: "API Keys",
-            icon: "i-lucide-key",
-            to: "/dashboard/apikeys",
+            label: "Claude Code",
+            icon: "i-lucide-bot",
+            to: "/code",
         },
     ];
 
@@ -39,47 +29,12 @@ const sidebarItems = computed(() => {
             label: "Admin",
             icon: "i-lucide-shield",
             type: "label",
-            // defaultOpen: route.path.startsWith("/dashboard/admin"),
-            // children: [
-            //     {
-            //         label: "Stable Promotion Requests",
-            //         to: "/dashboard/admin/stable-promotion-requests",
-            //     },
-            //     {
-            //         label: "Users",
-            //         to: "/dashboard/admin/users",
-            //     },
-            //     {
-            //         label: "All Packages",
-            //         to: "/dashboard/admin/packages",
-            //     },
-            // ],
         },
         {
             label: "Users",
             icon: "i-lucide-users",
-            to: "/dashboard/admin/users",
+            to: "/admin/users",
         },
-        {
-            label: "All Packages",
-            icon: "i-lucide-package-search",
-            to: "/dashboard/admin/packages",
-        },
-        {
-            label: "Stable Promotion Requests",
-            icon: "i-lucide-git-pull-request",
-            to: "/dashboard/admin/stable-promotion-requests",
-        },
-        {
-            label: "OS Releases",
-            icon: "i-lucide-rocket",
-            to: "/dashboard/admin/os-releases",
-        },
-        {
-            label: "Tasks",
-            icon: "i-lucide-list-checks",
-            to: "/dashboard/admin/tasks",
-        }
     ];
 
 
@@ -92,34 +47,20 @@ const sidebarItems = computed(() => {
         {
             label: "General",
             icon: "i-lucide-user",
-            to: "/dashboard/settings",
+            to: "/settings",
             exact: true,
         },
         {
             label: "Security",
             icon: "i-lucide-shield",
-            to: "/dashboard/settings/security",
-        },
-    ];
-
-    const footerItems: NavigationMenuItem[] = [
-        {
-            label: "Explorer",
-            icon: "i-lucide-compass",
-            to: "/explore",
-        },
-        {
-            label: "Back to Home",
-            icon: "i-lucide-home",
-            to: "/",
+            to: "/settings/security",
         },
     ];
 
     return {
-        dev: devItems,
+        dev: mainItems,
         settings: settings,
         admin: adminItems,
-        footer: footerItems,
     }
 });
 
@@ -173,12 +114,6 @@ const sidebarItems = computed(() => {
                     orientation="vertical"
                 />
 
-                <UNavigationMenu
-                    :collapsed="collapsed"
-                    :items="sidebarItems.footer"
-                    orientation="vertical"
-                    class="mt-auto"
-                />
             </template>
 
             <template #footer="{ collapsed }">

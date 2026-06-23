@@ -81,7 +81,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
         {
             label: "Settings",
             icon: "i-lucide-settings",
-            to: "/dashboard/settings",
+            to: "/settings",
         },
     ],
     [

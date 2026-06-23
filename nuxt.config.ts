@@ -17,7 +17,10 @@ export default defineNuxtConfig({
 	],
 
 	nitro: {
-		preset: 'bun'
+		preset: 'bun',
+		experimental: {
+			websocket: true,
+		},
 	},
 
 	runtimeConfig: {
@@ -28,8 +31,8 @@ export default defineNuxtConfig({
 	},
 
 	routeRules: {
-		"/dashboard/**": { ssr: false },
 		"/auth/**": { ssr: false },
+		"/code/**": { ssr: false },
 		"/**": { ssr: true }
 	}
 });

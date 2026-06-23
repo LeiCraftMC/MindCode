@@ -27,7 +27,7 @@ if (!userInfoStore.isValid(currentUser)) {
 }
 
 if (currentUser.value.role !== "admin") {
-    await navigateTo("/dashboard");
+    await navigateTo("/");
 }
 
 const userColumns: TableColumn<AdminUser>[] = [

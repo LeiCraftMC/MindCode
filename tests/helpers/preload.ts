@@ -16,8 +16,6 @@ function setTestEnv(rootDir: string) {
         MINDCODE_API_PORT: "13338",
         MINDCODE_API_DISABLE_DOCS: true,
 
-        MINDCODE_LOG_DIR: path.join(rootDir, "logs"),
-
         MINDCODE_DB_PATH: path.join(rootDir, "db.sqlite"),
         MINDCODE_DB_AUTO_MIGRATE: true,
 

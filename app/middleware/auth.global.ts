@@ -12,7 +12,7 @@ export default defineNuxtRouteMiddleware(async(to) => {
         const user = await useUserInfoStore().use();
 
         if (user.value) {
-            return navigateTo('/dashboard');
+            return navigateTo('/');
         }
 
         // Token exists but is invalid — clear it and stay on auth page
@@ -20,7 +20,7 @@ export default defineNuxtRouteMiddleware(async(to) => {
         return;
     }
 
-    if (to.path.startsWith('/dashboard')) {
+    if (to.path.startsWith('/') || to.path.startsWith('/code')) {
 
         if (!token) {
             return navigateTo('/auth/login?url=' + encodeURIComponent(to.fullPath));
@@ -35,10 +35,10 @@ export default defineNuxtRouteMiddleware(async(to) => {
             return navigateTo('/auth/login?url=' + encodeURIComponent(to.fullPath));
         }
 
-        if (to.path.startsWith('/dashboard/admin')) {
+        if (to.path.startsWith('/admin')) {
             // Check admin access
             if (user.value.role !== 'admin') {
-                return navigateTo('/dashboard');
+                return navigateTo('/');
             }
         }
 

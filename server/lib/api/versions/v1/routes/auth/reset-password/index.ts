@@ -7,14 +7,8 @@ import { APIResponse } from "../../../../../utils/api-res";
 import { AuthHandler } from "../../../../../utils/authHandler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../../docs";
-import { randomBytes as crypto_randomBytes, createHmac as crypto_createHmac } from "crypto"
+import { randomBytes as crypto_randomBytes, createHash as crypto_createHash } from "crypto"
 import type { Context } from "hono";
-
-// Server-side secret for HMAC — derived once at module load.
-// NOTE: This is ephemeral. A server restart invalidates all pending reset tokens,
-// since they were signed with the old key. With a 1-hour TTL this is acceptable,
-// but if reliability across restarts matters, persist this secret (e.g. in DB metadata).
-const HMAC_SECRET = crypto_randomBytes(32).toString('hex');
 
 // In-memory rate limiter for password reset requests
 const RESET_REQUEST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -36,7 +30,7 @@ const RESET_CLEANUP_INTERVAL = setInterval(() => {
 RESET_CLEANUP_INTERVAL.unref();
 
 export function hashResetToken(resetToken: string) {
-    return crypto_createHmac("sha256", HMAC_SECRET).update(resetToken).digest("hex");
+    return crypto_createHash("sha256").update(resetToken).digest("hex");
 }
 
 function checkRateLimit(map: Map<string, { count: number; resetAt: number }>, key: string, maxAttempts: number, windowMs: number): boolean {

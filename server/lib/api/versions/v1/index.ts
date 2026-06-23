@@ -5,6 +5,7 @@ import { router as authRouter } from "./routes/auth";
 import { router as accountRouter } from "./routes/account";
 import { router as adminRouter } from "./routes/admin";
 import { router as usersRouter } from "./routes/users";
+import { router as claudeRouter } from "./routes/claude";
 import { authMiddlewareV1 } from "./middleware/auth";
 
 const openAPIConfig: Partial<GenerateSpecOptions> = {
@@ -56,6 +57,12 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
                     "Authentication",
                 ],
             },
+            {
+                name: "Claude Code",
+                tags: [
+                    "Claude Code",
+                ],
+            },
         ],
 
         tags: [
@@ -78,6 +85,10 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
             {
                 name: "Users",
                 description: "Public user search, allowing authenticated users to find other users.",
+            },
+            {
+                name: "Claude Code",
+                description: "Claude Code session management and health checks.",
             }
         ]
     }
@@ -91,6 +102,7 @@ router.route("/", authRouter);
 router.route("/", accountRouter);
 router.route("/", adminRouter);
 router.route("/", usersRouter);
+router.route("/", claudeRouter);
 
 export class APIv1Router extends APIVersionRouter {
     constructor() {

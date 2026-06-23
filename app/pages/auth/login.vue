@@ -16,11 +16,11 @@ useSeoMeta({
 });
 
 const route = useRoute();
-let redirectUrl = route.query.url?.toString() || "/dashboard";
+let redirectUrl = route.query.url?.toString() || "/";
 
 // Ensure redirectUrl is a safe path within the application
-if (!redirectUrl.startsWith("/dashboard")) {
-    redirectUrl = "/dashboard";
+if (!redirectUrl.startsWith("/")) {
+    redirectUrl = "/";
 }
 
 

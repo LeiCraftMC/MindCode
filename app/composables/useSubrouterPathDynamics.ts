@@ -32,8 +32,8 @@ export namespace UseSubrouterPathDynamics {
          * The path dynamics for each subrouter path.
          * Example:
          * {
-         *   '/dashboard/packages/[package_name]': { ... },
-         *   '/dashboard/packages/[package_name]/releases': { ... },
+         *   '/packages/[package_name]': { ... },
+         *   '/packages/[package_name]/releases': { ... },
          */
         routes: Ref<RoutesConfig> | RoutesConfig;
     }

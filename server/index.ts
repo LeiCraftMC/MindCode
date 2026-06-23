@@ -2,6 +2,7 @@ import { API } from "./lib/api";
 import { DB } from "./db";
 import { ConfigHandler } from "./utils/config";
 import { Logger } from "./utils/logger";
+import { ClaudeSessionRunner } from "./lib/claude/sessionRunner";
 
 export class Main {
 
@@ -23,6 +24,8 @@ export class Main {
             config.MINDCODE_CONFIG_BASE_DIR ?? "./config"
         );
 
+        ClaudeSessionRunner.configure(config);
+
         await API.init(config.MINDCODE_API_DISABLE_DOCS === true);
 
         await API.start(
@@ -36,6 +39,7 @@ export class Main {
         try {
             Logger.log(`Received ${type}, shutting down...`);
 
+            await ClaudeSessionRunner.stop();
             await API.stop();
             await DB.close();
 

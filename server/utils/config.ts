@@ -112,16 +112,20 @@ export class ConfigHandler {
         .add("MINDCODE_PORT", false)
         .add("MINDCODE_API_DISABLE_DOCS", false, [true, false])
 
-        .add("MINDCODE_LOG_DIR", false)
-
         .add("MINDCODE_DB_PATH", false)
         .add("MINDCODE_DB_AUTO_MIGRATE", false, [true, false])
 
         .add("MINDCODE_CONFIG_BASE_DIR", false)
 
         .add("MINDCODE_APP_URL", false)
-        .add("MINDCODE_API_URL", false)
-        .add("MINDCODE_ENABLE_SIGNUP", false, [true, false])
+
+        .add("MINDCODE_CLAUDE_BINARY_PATH", false)
+        .add("MINDCODE_CLAUDE_MAX_CONCURRENT", false)
+        .add("MINDCODE_CLAUDE_DEFAULT_MODEL", false)
+        .add("MINDCODE_CLAUDE_DEFAULT_EFFORT", false, ["low", "medium", "high", "xhigh", "max"])
+        .add("MINDCODE_CLAUDE_ALLOWED_TOOLS", false)
+        .add("MINDCODE_CLAUDE_MAX_TURNS", false)
+        .add("MINDCODE_CLAUDE_MAX_BUDGET_USD", false)
     ;
 
 

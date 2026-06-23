@@ -6,7 +6,7 @@
         "db:generate": "bun scripts/db-utils && bunx --bun drizzle-kit generate --config=drizzle.config.ts",
         "db:migrate": "bun scripts/db-utils && bunx --bun drizzle-kit migrate --config=drizzle.config.ts",
         "build": "nuxt build",
-        "start": "bun run .output/server/index.mjs --port 13338",
+        "start": "PORT=13338 bun run .output/server/index.mjs",
         "dev": "nuxt dev --port 13338",
         "generate": "nuxt generate",
         "preview": "nuxt preview",
@@ -16,6 +16,7 @@
         "test": "bun test"
     },
     "dependencies": {
+        "@anthropic-ai/claude-agent-sdk": "^0.3.186",
         "@hey-api/nuxt": "^0.2.1",
         "@hey-api/openapi-ts": "^0.98.2",
         "@libsql/client": "^0.17.4",

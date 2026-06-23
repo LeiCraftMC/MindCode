@@ -3,6 +3,7 @@ import { ConfigHandler } from '../utils/config'
 import { Logger } from '../utils/logger'
 import { DB } from '../db'
 import { API } from '../lib/api'
+import { ClaudeSessionRunner } from '../lib/claude/sessionRunner'
 
 export default defineNitroPlugin(async () => {
 	const config = await ConfigHandler.loadConfig()
@@ -14,6 +15,8 @@ export default defineNitroPlugin(async () => {
 		config.MINDCODE_DB_AUTO_MIGRATE,
 		config.MINDCODE_CONFIG_BASE_DIR ?? './config'
 	)
+
+	ClaudeSessionRunner.configure(config)
 
 	await API.init(config.MINDCODE_API_DISABLE_DOCS === true)
 })

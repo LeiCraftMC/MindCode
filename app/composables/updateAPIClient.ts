@@ -3,7 +3,8 @@ import { useRuntimeAppConfigs } from "./useRuntimeAppConfigs";
 
 export function updateAPIClient(token: string | null) {
 
-    const apiURL = useRuntimeAppConfigs().apiUrl
+    const appUrl = useRuntimeAppConfigs().appUrl.replace(/\/$/, "");
+    const apiURL = appUrl + "/api/v1"
 
     if (token) {
         client.setConfig({

@@ -9,4 +9,6 @@ export const DOCS_TAGS = {
     AUTHENTICATION: "Authentication",
 
     USERS: "Users",
+
+    CLAUDE: "Claude Code",
 };
