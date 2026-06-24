@@ -31,7 +31,7 @@ if (!isAdmin.value) {
     navigateTo('/');
 } else {
     // navigate to /admin/users as default admin page for now
-    navigateTo('/admin/users');
+    navigateTo('/admin/users', { replace: true });
 }
 
 </script>
