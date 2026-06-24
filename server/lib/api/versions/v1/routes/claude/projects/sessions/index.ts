@@ -22,11 +22,41 @@ router.get('/',
         )
     }),
 
+    validator('query', ProjectSessionModel.GetAll.Query),
+
     async (c) => {
         // @ts-ignore
         const project = c.get('project') as ProjectModel.Project.WithSessions;
 
-        return APIResponse.success(c, 'Sessions retrieved successfully', project.sessions satisfies ProjectSessionModel.GetAll.Response);
+        const query = c.req.valid('query');
+
+        let sessions = project.sessions;
+
+        if (sessions.length === 0) {
+            return APIResponse.success(c, "Sessions retrieved successfully", sessions satisfies ProjectSessionModel.GetAll.Response);
+        }
+
+        if (query.order === "newest") {
+            sessions = sessions.sort((a, b) => b.last_modified - a.last_modified);
+        } else if (query.order === "oldest") {
+            sessions = sessions.sort((a, b) => a.last_modified - b.last_modified);
+        }
+
+        if (query.searchString) {
+            const searchLower = query.searchString.toLowerCase();
+            sessions = sessions.filter(session => session.title.toLowerCase().includes(searchLower));
+        }
+
+        if (query.limit) {
+            if (query.offset) {
+                sessions = sessions.slice(query.offset, query.offset + query.limit);
+            } else {
+                sessions = sessions.slice(0, query.limit);
+            }
+        }
+
+        return APIResponse.success(c, "Sessions retrieved successfully", sessions satisfies ProjectSessionModel.GetAll.Response);
+        
     }
 
 );
@@ -101,7 +131,7 @@ router.get('/:session_id/messages',
             dir: project.absolute_path
         });
 
-        return APIResponse.success(c, 'Session messages retrieved successfully', sessionMessages_raw satisfies ProjectSessionModel.GetSessionMessages.Response);
+        return APIResponse.success(c, 'Session messages retrieved successfully', sessionMessages_raw as ProjectSessionModel.GetSessionMessages.Response);
     }
 
 );

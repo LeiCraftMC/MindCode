@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ProjectSessionModel } from "./sessions/model";
+import { ApiHelperModels } from "~~/server/lib/api/utils/shared-models/api-helper-models";
 
 
 export namespace ProjectModel.Project {
@@ -66,6 +67,8 @@ export namespace ProjectModel.GetAll {
 
     export const Response = z.array(ProjectModel.Project.Exists);
     export type Response = z.infer<typeof Response>;
+
+    export const Query = ApiHelperModels.ListAll.QueryWithSearch;
 
 }
 

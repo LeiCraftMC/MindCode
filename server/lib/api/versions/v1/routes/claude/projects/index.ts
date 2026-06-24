@@ -102,9 +102,47 @@ router.get('/',
         )
     }),
 
+    validator('query', ProjectModel.GetAll.Query),
+
     async (c) => {
 
-        const existing_projects = await getExistingProjects();
+        const query = c.req.valid('query')
+
+        let existing_projects = await getExistingProjects();
+
+        if (query.order === "newest") {
+            existing_projects = Object.values(existing_projects).sort((a, b) => b.last_used - a.last_used).reduce((acc, project) => {
+                acc[project.absolute_path] = project;
+                return acc;
+            }, {} as ProjectModel.Project.ExistingProjectsSorted);
+        } else if (query.order === "oldest") {
+            existing_projects = Object.values(existing_projects).sort((a, b) => a.last_used - b.last_used).reduce((acc, project) => {
+                acc[project.absolute_path] = project;
+                return acc;
+            }, {} as ProjectModel.Project.ExistingProjectsSorted);
+        }
+
+        if (query.searchString) {
+            const searchLower = query.searchString.toLowerCase();
+            existing_projects = Object.values(existing_projects).filter(project => project.name.toLowerCase().includes(searchLower)).reduce((acc, project) => {
+                acc[project.absolute_path] = project;
+                return acc;
+            }, {} as ProjectModel.Project.ExistingProjectsSorted);
+        }
+
+        if (query.limit) {
+            if (query.offset) {
+                existing_projects = Object.values(existing_projects).slice(query.offset, query.offset + query.limit).reduce((acc, project) => {
+                    acc[project.absolute_path] = project;
+                    return acc;
+                }, {} as ProjectModel.Project.ExistingProjectsSorted);
+            } else {
+                existing_projects = Object.values(existing_projects).slice(0, query.limit).reduce((acc, project) => {
+                    acc[project.absolute_path] = project;
+                    return acc;
+                }, {} as ProjectModel.Project.ExistingProjectsSorted);
+            }
+        }
 
         return APIResponse.success(c, 'Projects retrieved successfully', Object.values(existing_projects) satisfies ProjectModel.GetAll.Response);
 

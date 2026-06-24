@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ApiHelperModels } from "~~/server/lib/api/utils/shared-models/api-helper-models";
+import { MessageHistoryModel } from "~~/server/lib/api/utils/shared-models/messageHistoryModel";
 
 export namespace ProjectSessionModel {
 
@@ -15,6 +17,8 @@ export namespace ProjectSessionModel {
 }
 
 export namespace ProjectSessionModel.GetAll {
+
+    export const Query = ApiHelperModels.ListAll.QueryWithSearch;
 
     export const Response = z.array(ProjectSessionModel.Session);
     export type Response = z.infer<typeof Response>;
@@ -35,18 +39,9 @@ export namespace ProjectSessionModel.GetBySessionId {
 }
 
 export namespace ProjectSessionModel.GetSessionMessages {
-
-    export const Message = z.object({
-        type: z.enum(['user', 'assistant', 'system']),
-        uuid: z.string(),
-        session_id: z.string(),
-        message: z.unknown(),
-        parent_tool_use_id: z.string().nullable()
-    });
-    export type Message = z.infer<typeof Message>;
         
 
-    export const Response = z.array(Message);
+    export const Response = MessageHistoryModel.History;
     export type Response = z.infer<typeof Response>;
 
 }
