@@ -3,8 +3,8 @@ import { validator } from "hono-openapi";
 import { DOCS_TAGS } from "../../../../docs";
 import { ProjectSessionModel } from "./model";
 import { ProjectModel } from "../model";
-import { APIRouteSpec, APIResponseSpec } from "@@/server/lib/api/utils/specHelpers";
-import { APIResponse } from "~~/server/lib/api/utils/api-res";
+import { APIRouteSpec, APIResponseSpec } from "../../../../../../utils/specHelpers";
+import { APIResponse } from "../../../../../../utils/api-res";
 import { deleteSession, getSessionInfo, getSessionMessages, renameSession } from "@anthropic-ai/claude-agent-sdk";
 
 export const router = new Hono().basePath('/sessions');

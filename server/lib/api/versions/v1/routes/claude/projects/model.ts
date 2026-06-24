@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ProjectSessionModel } from "./sessions/model";
-import { ApiHelperModels } from "~~/server/lib/api/utils/shared-models/api-helper-models";
+import { ApiHelperModels } from "../../../../../utils/shared-models/api-helper-models";
 
 
 export namespace ProjectModel.Project {

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ApiHelperModels } from "~~/server/lib/api/utils/shared-models/api-helper-models";
-import { MessageHistoryModel } from "~~/server/lib/api/utils/shared-models/messageHistoryModel";
+import { ApiHelperModels } from "../../../../../../utils/shared-models/api-helper-models";
+import { MessageHistoryModel } from "../../../../../../utils/shared-models/messageHistoryModel"
 
 export namespace ProjectSessionModel {
 

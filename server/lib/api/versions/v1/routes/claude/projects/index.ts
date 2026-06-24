@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { DOCS_TAGS } from "../../../docs";
 import { ProjectModel } from "./model";
-import { APIRouteSpec, APIResponseSpec } from "@@/server/lib/api/utils/specHelpers";
+import { APIRouteSpec, APIResponseSpec } from "../../../../../utils/specHelpers";
 import { listSessions } from "@anthropic-ai/claude-agent-sdk";
-import { APIResponse } from "~~/server/lib/api/utils/api-res";
+import { APIResponse } from "../../../../../utils/api-res";
 import { validator } from "hono-openapi";
 import { router as sessionsRouter } from "./sessions";
 import { ProjectSessionModel } from "./sessions/model";
