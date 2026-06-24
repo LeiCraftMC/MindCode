@@ -8,6 +8,7 @@ import { ClaudeSessionRunner } from '../../../../../claude/sessionRunner';
 import { ClaudeModel } from './model';
 import { DOCS_TAGS } from '../../docs';
 import { ConfigHandler } from '../../../../../../utils/config';
+import { router as projectsRouter } from './projects';
 
 const STATIC_SLASH_COMMANDS: ClaudeModel.SlashCommand[] = [
     { name: 'help', description: 'Show available commands and tips' },
@@ -43,10 +44,12 @@ router.use('*', async (c, next) => {
 
 // GET /claude/sessions — list user's claude sessions via SDK
 router.get('/sessions',
+
     APIRouteSpec.authenticated({
         summary: 'List Claude Code sessions',
         description: "Retrieve a list of the authenticated user's Claude Code sessions from the SDK.",
         tags: [DOCS_TAGS.CLAUDE],
+
         responses: APIResponseSpec.describeBasic(
             APIResponseSpec.success('Sessions retrieved', z.object({
                 sessions: z.array(ClaudeModel.Session),
@@ -54,7 +57,9 @@ router.get('/sessions',
             APIResponseSpec.unauthorized(),
         ),
     }),
+
     validator('query', ClaudeModel.ListSessions.Query),
+
     async (c) => {
         // @ts-ignore
         const authContext = c.get('authContext') as AuthHandler.SessionAuthContext;
@@ -181,3 +186,5 @@ router.get('/health',
         });
     }
 );
+
+router.route('/', projectsRouter);

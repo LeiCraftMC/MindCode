@@ -11,4 +11,6 @@ export const DOCS_TAGS = {
     USERS: "Users",
 
     CLAUDE: "Claude Code",
+    CLAUDE_PROJECTS: "Claude Code / Projects",
+    CLAUDE_SESSIONS: "Claude Code / Projects / Sessions",
 };
