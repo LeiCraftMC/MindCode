@@ -2,7 +2,7 @@ import { Logger } from '../../utils/logger';
 import { AuthHandler } from '../api/utils/authHandler';
 import type { ParsedConfig } from '../../utils/config';
 import type { Message } from 'crossws';
-import type { Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { Options, Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 
 export interface ClientToServerMessage {
     type: 'auth' | 'start' | 'message' | 'cancel';
@@ -132,13 +132,15 @@ export class ClaudeSessionRunner {
         try {
             const sdk = await import('@anthropic-ai/claude-agent-sdk');
 
-            const options: any = {
+            const options: Options = {
                 allowedTools: this.config?.MINDCODE_CLAUDE_ALLOWED_TOOLS?.split(',').map(s => s.trim()) || undefined,
                 maxTurns: this.config?.MINDCODE_CLAUDE_MAX_TURNS ? parseInt(this.config.MINDCODE_CLAUDE_MAX_TURNS) : undefined,
                 maxBudgetUsd: this.config?.MINDCODE_CLAUDE_MAX_BUDGET_USD ? parseFloat(this.config.MINDCODE_CLAUDE_MAX_BUDGET_USD) : undefined,
                 model,
-                effortLevel: effort,
+                effort: effort as "low" | "medium" | "high" | "xhigh" | "max" | undefined,
+                cwd: projectPath,
                 sessionId: sessionUuid,
+                pathToClaudeCodeExecutable: this.config?.MINDCODE_CLAUDE_BINARY_PATH || undefined,
             };
 
             // If resuming, use resume option instead of sessionId
