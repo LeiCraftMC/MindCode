@@ -9,7 +9,7 @@
 import { API } from "../server/lib/api";
 
 const PORT = 13340;
-const HOST = "localhost";
+const HOST = "127.0.0.1";
 
 await API.init();
 const apiServer = Bun.serve({ port: PORT, hostname: HOST, fetch: API.getApp().fetch });

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Composable, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdError, DeleteAdminUsersByUserIdResponse, GetAccountData, GetAccountError, GetAccountResponse, GetAdminUsersByUserIdData, GetAdminUsersByUserIdError, GetAdminUsersByUserIdResponse, GetAdminUsersData, GetAdminUsersResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetUsersSearchData, GetUsersSearchError, GetUsersSearchResponse, PostAdminUsersData, PostAdminUsersError, PostAdminUsersResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestError, PostAuthResetPasswordRequestResponse, PostAuthResetPasswordResponse, PutAccountData, PutAccountError, PutAccountPasswordData, PutAccountPasswordError, PutAccountPasswordResponse, PutAccountResponse, PutAdminUsersByUserIdData, PutAdminUsersByUserIdError, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordError, PutAdminUsersByUserIdPasswordResponse, PutAdminUsersByUserIdResponse } from './types.gen';
+import type { DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdError, DeleteAdminUsersByUserIdResponse, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetAccountData, GetAccountError, GetAccountResponse, GetAdminUsersByUserIdData, GetAdminUsersByUserIdError, GetAdminUsersByUserIdResponse, GetAdminUsersData, GetAdminUsersResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, GetClaudeProjectsData, GetClaudeProjectsResponse, PostAdminUsersData, PostAdminUsersError, PostAdminUsersResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestError, PostAuthResetPasswordRequestResponse, PostAuthResetPasswordResponse, PutAccountData, PutAccountError, PutAccountPasswordData, PutAccountPasswordError, PutAccountPasswordResponse, PutAccountResponse, PutAdminUsersByUserIdData, PutAdminUsersByUserIdError, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordError, PutAdminUsersByUserIdPasswordResponse, PutAdminUsersByUserIdResponse, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse } from './types.gen';
 
 export type Options<TComposable extends Composable = '$fetch', TData extends TDataShape = TDataShape, ResT = unknown, DefaultT = undefined> = Options2<TComposable, TData, ResT, DefaultT> & {
     /**
@@ -213,12 +213,82 @@ export const putAdminUsersByUserIdPassword = <TComposable extends Composable = '
 });
 
 /**
- * Search users
+ * List All Projects
  *
- * Search for MindCode users by username or display name. Only returns minimal public info. Requires authentication.
+ * Retrieve a list of all existing projects.
  */
-export const getUsersSearch = <TComposable extends Composable = '$fetch', DefaultT extends GetUsersSearchResponse = GetUsersSearchResponse>(options: Options<TComposable, GetUsersSearchData, GetUsersSearchResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetUsersSearchResponse | DefaultT, GetUsersSearchError, DefaultT>({
+export const getClaudeProjects = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsResponse = GetClaudeProjectsResponse>(options: Options<TComposable, GetClaudeProjectsData, GetClaudeProjectsResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsResponse | DefaultT, unknown, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/search',
+    url: '/claude/projects',
+    ...options
+});
+
+/**
+ * Get Project by its Absolute Path
+ *
+ * Retrieve a specific project by its absolute path.
+ */
+export const getClaudeProjectsByAbsolutePath = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathResponse = GetClaudeProjectsByAbsolutePathResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathResponse | DefaultT, unknown, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}',
+    ...options
+});
+
+/**
+ * List Project Sessions
+ *
+ * Retrieve all Claude Code sessions for a specific project.
+ */
+export const getClaudeProjectsByAbsolutePathSessions = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsResponse = GetClaudeProjectsByAbsolutePathSessionsResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsResponse | DefaultT, unknown, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}/sessions',
+    ...options
+});
+
+/**
+ * Delete Project Session
+ *
+ * Delete a specific Claude Code session within a project.
+ */
+export const deleteClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).delete<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}',
+    ...options
+});
+
+/**
+ * Get Project Session
+ *
+ * Retrieve a specific Claude Code session within a project.
+ */
+export const getClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}',
+    ...options
+});
+
+/**
+ * Rename Project Session
+ *
+ * Rename a specific Claude Code session within a project.
+ */
+export const putClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Project Session Messages
+ *
+ * Retrieve messages for a specific Claude Code session within a project.
+ */
+export const getClaudeProjectsByAbsolutePathSessionsBySessionIdMessages = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}/messages',
     ...options
 });

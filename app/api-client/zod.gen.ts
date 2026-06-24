@@ -307,21 +307,353 @@ export const zPutAdminUsersByUserIdPasswordResponse = z.object({
     data: z.null()
 });
 
-export const zGetUsersSearchQuery = z.object({
-    q: z.string().min(2).max(64),
-    limit: z.int().gte(1).lte(50).optional().default(10)
+export const zGetClaudeProjectsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(10),
+    offset: z.int().gte(0).lte(9007199254740991).optional().default(0),
+    order: z.enum(['newest', 'oldest']).optional().default('newest'),
+    searchString: z.string().min(3).optional()
 });
 
 /**
- * Users retrieved successfully
+ * Projects retrieved successfully
  */
-export const zGetUsersSearchResponse = z.object({
+export const zGetClaudeProjectsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Users retrieved successfully'),
+    message: z.literal('Projects retrieved successfully'),
     data: z.array(z.object({
-        id: z.int().gte(-9007199254740991).lte(9007199254740991),
-        username: z.string(),
-        display_name: z.string()
+        exists: z.literal(true),
+        name: z.string(),
+        absolute_path: z.string(),
+        last_used: z.int().gte(-9007199254740991).lte(9007199254740991)
+    }))
+});
+
+export const zGetClaudeProjectsByAbsolutePathPath = z.object({
+    absolute_path: z.string()
+});
+
+/**
+ * Project retrieved successfully
+ */
+export const zGetClaudeProjectsByAbsolutePathResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Project retrieved successfully'),
+    data: z.union([
+        z.object({
+            exists: z.literal(true),
+            name: z.string(),
+            absolute_path: z.string(),
+            last_used: z.int().gte(-9007199254740991).lte(9007199254740991)
+        }),
+        z.object({
+            exists: z.literal(false),
+            name: z.string(),
+            absolute_path: z.string(),
+            last_used: z.unknown()
+        })
+    ])
+});
+
+export const zGetClaudeProjectsByAbsolutePathSessionsPath = z.object({
+    absolute_path: z.string()
+});
+
+export const zGetClaudeProjectsByAbsolutePathSessionsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(10),
+    offset: z.int().gte(0).lte(9007199254740991).optional().default(0),
+    order: z.enum(['newest', 'oldest']).optional().default('newest'),
+    searchString: z.string().min(3).optional()
+});
+
+/**
+ * Sessions retrieved successfully
+ */
+export const zGetClaudeProjectsByAbsolutePathSessionsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Sessions retrieved successfully'),
+    data: z.array(z.object({
+        session_id: z.string(),
+        title: z.string(),
+        last_modified: z.int().gte(-9007199254740991).lte(9007199254740991),
+        git_branch: z.string().optional(),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991).optional()
+    }))
+});
+
+export const zDeleteClaudeProjectsByAbsolutePathSessionsBySessionIdPath = z.object({
+    absolute_path: z.string(),
+    session_id: z.string()
+});
+
+/**
+ * Session deleted successfully
+ */
+export const zDeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Session deleted successfully'),
+    data: z.null()
+});
+
+export const zGetClaudeProjectsByAbsolutePathSessionsBySessionIdPath = z.object({
+    absolute_path: z.string(),
+    session_id: z.string()
+});
+
+/**
+ * Session retrieved successfully
+ */
+export const zGetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Session retrieved successfully'),
+    data: z.object({
+        session_id: z.string(),
+        title: z.string(),
+        last_modified: z.int().gte(-9007199254740991).lte(9007199254740991),
+        git_branch: z.string().optional(),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991).optional()
+    })
+});
+
+export const zPutClaudeProjectsByAbsolutePathSessionsBySessionIdBody = z.object({
+    title: z.string().min(1).max(255)
+});
+
+export const zPutClaudeProjectsByAbsolutePathSessionsBySessionIdPath = z.object({
+    absolute_path: z.string(),
+    session_id: z.string()
+});
+
+/**
+ * Session renamed successfully
+ */
+export const zPutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Session renamed successfully'),
+    data: z.object({
+        session_id: z.string(),
+        title: z.string(),
+        last_modified: z.int().gte(-9007199254740991).lte(9007199254740991),
+        git_branch: z.string().optional(),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991).optional()
+    })
+});
+
+export const zGetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesPath = z.object({
+    absolute_path: z.string(),
+    session_id: z.string()
+});
+
+/**
+ * Session messages retrieved successfully
+ */
+export const zGetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Session messages retrieved successfully'),
+    data: z.array(z.object({
+        type: z.enum([
+            'user',
+            'assistant',
+            'system'
+        ]),
+        uuid: z.string(),
+        session_id: z.string(),
+        message: z.union([
+            z.object({
+                role: z.enum(['user', 'assistant']),
+                content: z.union([
+                    z.string(),
+                    z.array(z.union([
+                        z.object({
+                            type: z.literal('text'),
+                            text: z.string()
+                        }),
+                        z.object({
+                            type: z.literal('image'),
+                            source: z.object({
+                                type: z.enum(['base64', 'url']),
+                                media_type: z.enum([
+                                    'image/jpeg',
+                                    'image/png',
+                                    'image/gif',
+                                    'image/webp'
+                                ]),
+                                data: z.string().optional(),
+                                url: z.string().optional()
+                            })
+                        }),
+                        z.object({
+                            type: z.literal('tool_use'),
+                            id: z.string(),
+                            name: z.string(),
+                            input: z.record(z.string(), z.union([
+                                z.string(),
+                                z.number(),
+                                z.boolean(),
+                                z.array(z.record(z.string(), z.union([
+                                    z.string(),
+                                    z.number(),
+                                    z.boolean()
+                                ])))
+                            ]))
+                        }),
+                        z.object({
+                            type: z.literal('tool_result'),
+                            tool_use_id: z.string(),
+                            content: z.union([
+                                z.string(),
+                                z.array(z.object({
+                                    type: z.literal('text'),
+                                    text: z.string()
+                                }))
+                            ]).optional(),
+                            is_error: z.boolean().optional()
+                        }),
+                        z.object({
+                            type: z.literal('thinking'),
+                            thinking: z.string(),
+                            signature: z.string().optional()
+                        }),
+                        z.object({
+                            type: z.literal('redacted_thinking'),
+                            data: z.string()
+                        })
+                    ]))
+                ])
+            }),
+            z.object({
+                id: z.string(),
+                type: z.literal('message'),
+                role: z.literal('assistant'),
+                content: z.array(z.union([
+                    z.object({
+                        type: z.literal('text'),
+                        text: z.string()
+                    }),
+                    z.object({
+                        type: z.literal('thinking'),
+                        thinking: z.string(),
+                        signature: z.string()
+                    }),
+                    z.object({
+                        type: z.literal('redacted_thinking'),
+                        data: z.string()
+                    }),
+                    z.object({
+                        type: z.literal('tool_use'),
+                        id: z.string(),
+                        name: z.string(),
+                        input: z.record(z.string(), z.union([
+                            z.string(),
+                            z.number(),
+                            z.boolean(),
+                            z.array(z.record(z.string(), z.union([
+                                z.string(),
+                                z.number(),
+                                z.boolean()
+                            ])))
+                        ]))
+                    })
+                ])),
+                model: z.string(),
+                stop_reason: z.string().nullable(),
+                stop_sequence: z.string().nullable(),
+                usage: z.object({
+                    input_tokens: z.number(),
+                    cache_creation_input_tokens: z.number().nullable(),
+                    cache_read_input_tokens: z.number().nullable(),
+                    output_tokens: z.number(),
+                    server_tool_use: z.object({
+                        web_search_requests: z.number(),
+                        web_fetch_requests: z.number()
+                    }).nullish(),
+                    service_tier: z.enum([
+                        'standard',
+                        'priority',
+                        'batch'
+                    ]).nullable(),
+                    cache_creation: z.object({
+                        ephemeral_1h_input_tokens: z.number(),
+                        ephemeral_5m_input_tokens: z.number()
+                    }).nullish(),
+                    inference_geo: z.string().nullish(),
+                    iterations: z.array(z.union([
+                        z.object({
+                            type: z.literal('message'),
+                            input_tokens: z.number(),
+                            output_tokens: z.number(),
+                            cache_creation_input_tokens: z.number(),
+                            cache_read_input_tokens: z.number(),
+                            cache_creation: z.object({
+                                ephemeral_1h_input_tokens: z.number(),
+                                ephemeral_5m_input_tokens: z.number()
+                            }).nullable(),
+                            model: z.string()
+                        }),
+                        z.object({
+                            type: z.literal('compaction'),
+                            input_tokens: z.number(),
+                            output_tokens: z.number(),
+                            cache_creation_input_tokens: z.number(),
+                            cache_read_input_tokens: z.number(),
+                            cache_creation: z.object({
+                                ephemeral_1h_input_tokens: z.number(),
+                                ephemeral_5m_input_tokens: z.number()
+                            }).nullable()
+                        }),
+                        z.object({
+                            type: z.literal('advisor_message'),
+                            input_tokens: z.number(),
+                            output_tokens: z.number(),
+                            cache_creation_input_tokens: z.number(),
+                            cache_read_input_tokens: z.number(),
+                            cache_creation: z.object({
+                                ephemeral_1h_input_tokens: z.number(),
+                                ephemeral_5m_input_tokens: z.number()
+                            }).nullable(),
+                            model: z.string()
+                        }),
+                        z.object({
+                            type: z.literal('fallback_message'),
+                            input_tokens: z.number(),
+                            output_tokens: z.number(),
+                            cache_creation_input_tokens: z.number(),
+                            cache_read_input_tokens: z.number(),
+                            cache_creation: z.object({
+                                ephemeral_1h_input_tokens: z.number(),
+                                ephemeral_5m_input_tokens: z.number()
+                            }).nullable(),
+                            model: z.string()
+                        })
+                    ])).nullish(),
+                    output_tokens_details: z.object({
+                        text_tokens: z.number().optional(),
+                        thinking_tokens: z.number().optional()
+                    }).nullish(),
+                    speed: z.enum(['standard', 'fast']).nullish()
+                }),
+                stop_details: z.object({
+                    type: z.literal('early')
+                }).nullish()
+            }),
+            z.record(z.string(), z.union([
+                z.string(),
+                z.number(),
+                z.boolean(),
+                z.array(z.record(z.string(), z.union([
+                    z.string(),
+                    z.number(),
+                    z.boolean()
+                ])))
+            ]))
+        ]),
+        parent_tool_use_id: z.string().nullable(),
+        timestamp: z.iso.datetime().regex(/^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$/).optional()
     }))
 });

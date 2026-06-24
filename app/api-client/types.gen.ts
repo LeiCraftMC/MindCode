@@ -701,43 +701,424 @@ export type PutAdminUsersByUserIdPasswordResponses = {
 
 export type PutAdminUsersByUserIdPasswordResponse = PutAdminUsersByUserIdPasswordResponses[keyof PutAdminUsersByUserIdPasswordResponses];
 
-export type GetUsersSearchData = {
+export type GetClaudeProjectsData = {
     body?: never;
     path?: never;
-    query: {
-        q: string;
+    query?: {
         limit?: number;
+        offset?: number;
+        order?: 'newest' | 'oldest';
+        searchString?: string;
     };
-    url: '/users/search';
+    url: '/claude/projects';
 };
 
-export type GetUsersSearchErrors = {
+export type GetClaudeProjectsResponses = {
     /**
-     * Authentication required
-     */
-    401: {
-        success: false;
-        code: 401;
-        message: 'Authentication required';
-    };
-};
-
-export type GetUsersSearchError = GetUsersSearchErrors[keyof GetUsersSearchErrors];
-
-export type GetUsersSearchResponses = {
-    /**
-     * Users retrieved successfully
+     * Projects retrieved successfully
      */
     200: {
         success: true;
         code: 200;
-        message: 'Users retrieved successfully';
+        message: 'Projects retrieved successfully';
         data: Array<{
-            id: number;
-            username: string;
-            display_name: string;
+            exists: true;
+            name: string;
+            absolute_path: string;
+            last_used: number;
         }>;
     };
 };
 
-export type GetUsersSearchResponse = GetUsersSearchResponses[keyof GetUsersSearchResponses];
+export type GetClaudeProjectsResponse = GetClaudeProjectsResponses[keyof GetClaudeProjectsResponses];
+
+export type GetClaudeProjectsByAbsolutePathData = {
+    body?: never;
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+    };
+    query?: never;
+    url: '/claude/projects/{absolute_path}';
+};
+
+export type GetClaudeProjectsByAbsolutePathResponses = {
+    /**
+     * Project retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Project retrieved successfully';
+        data: {
+            exists: true;
+            name: string;
+            absolute_path: string;
+            last_used: number;
+        } | {
+            exists: false;
+            name: string;
+            absolute_path: string;
+            last_used: unknown;
+        };
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathResponse = GetClaudeProjectsByAbsolutePathResponses[keyof GetClaudeProjectsByAbsolutePathResponses];
+
+export type GetClaudeProjectsByAbsolutePathSessionsData = {
+    body?: never;
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+    };
+    query?: {
+        limit?: number;
+        offset?: number;
+        order?: 'newest' | 'oldest';
+        searchString?: string;
+    };
+    url: '/claude/projects/{absolute_path}/sessions';
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsResponses = {
+    /**
+     * Sessions retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Sessions retrieved successfully';
+        data: Array<{
+            session_id: string;
+            title: string;
+            last_modified: number;
+            git_branch?: string;
+            created_at?: number;
+        }>;
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsResponse = GetClaudeProjectsByAbsolutePathSessionsResponses[keyof GetClaudeProjectsByAbsolutePathSessionsResponses];
+
+export type DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData = {
+    body?: never;
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}';
+};
+
+export type DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdErrors = {
+    /**
+     * Session not found
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Session not found';
+    };
+};
+
+export type DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError = DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdErrors[keyof DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdErrors];
+
+export type DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponses = {
+    /**
+     * Session deleted successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Session deleted successfully';
+        data: null;
+    };
+};
+
+export type DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponses[keyof DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponses];
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdData = {
+    body?: never;
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}';
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdErrors = {
+    /**
+     * Session not found
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Session not found';
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdError = GetClaudeProjectsByAbsolutePathSessionsBySessionIdErrors[keyof GetClaudeProjectsByAbsolutePathSessionsBySessionIdErrors];
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponses = {
+    /**
+     * Session retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Session retrieved successfully';
+        data: {
+            session_id: string;
+            title: string;
+            last_modified: number;
+            git_branch?: string;
+            created_at?: number;
+        };
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponses[keyof GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponses];
+
+export type PutClaudeProjectsByAbsolutePathSessionsBySessionIdData = {
+    body: {
+        title: string;
+    };
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}';
+};
+
+export type PutClaudeProjectsByAbsolutePathSessionsBySessionIdErrors = {
+    /**
+     * Session not found
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Session not found';
+    };
+};
+
+export type PutClaudeProjectsByAbsolutePathSessionsBySessionIdError = PutClaudeProjectsByAbsolutePathSessionsBySessionIdErrors[keyof PutClaudeProjectsByAbsolutePathSessionsBySessionIdErrors];
+
+export type PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponses = {
+    /**
+     * Session renamed successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Session renamed successfully';
+        data: {
+            session_id: string;
+            title: string;
+            last_modified: number;
+            git_branch?: string;
+            created_at?: number;
+        };
+    };
+};
+
+export type PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponses[keyof PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponses];
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData = {
+    body?: never;
+    path: {
+        /**
+         * URI-encoded project absolute path
+         */
+        absolute_path: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/claude/projects/{absolute_path}/sessions/{session_id}/messages';
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesErrors = {
+    /**
+     * Session not found
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Session not found';
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError = GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesErrors[keyof GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesErrors];
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses = {
+    /**
+     * Session messages retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Session messages retrieved successfully';
+        data: Array<{
+            type: 'user' | 'assistant' | 'system';
+            uuid: string;
+            session_id: string;
+            message: {
+                role: 'user' | 'assistant';
+                content: string | Array<{
+                    type: 'text';
+                    text: string;
+                } | {
+                    type: 'image';
+                    source: {
+                        type: 'base64' | 'url';
+                        media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+                        data?: string;
+                        url?: string;
+                    };
+                } | {
+                    type: 'tool_use';
+                    id: string;
+                    name: string;
+                    input: {
+                        [key: string]: string | number | boolean | Array<{
+                            [key: string]: string | number | boolean;
+                        }>;
+                    };
+                } | {
+                    type: 'tool_result';
+                    tool_use_id: string;
+                    content?: string | Array<{
+                        type: 'text';
+                        text: string;
+                    }>;
+                    is_error?: boolean;
+                } | {
+                    type: 'thinking';
+                    thinking: string;
+                    signature?: string;
+                } | {
+                    type: 'redacted_thinking';
+                    data: string;
+                }>;
+            } | {
+                id: string;
+                type: 'message';
+                role: 'assistant';
+                content: Array<{
+                    type: 'text';
+                    text: string;
+                } | {
+                    type: 'thinking';
+                    thinking: string;
+                    signature: string;
+                } | {
+                    type: 'redacted_thinking';
+                    data: string;
+                } | {
+                    type: 'tool_use';
+                    id: string;
+                    name: string;
+                    input: {
+                        [key: string]: string | number | boolean | Array<{
+                            [key: string]: string | number | boolean;
+                        }>;
+                    };
+                }>;
+                model: string;
+                stop_reason: string | null;
+                stop_sequence: string | null;
+                usage: {
+                    input_tokens: number;
+                    cache_creation_input_tokens: number | null;
+                    cache_read_input_tokens: number | null;
+                    output_tokens: number;
+                    server_tool_use?: {
+                        web_search_requests: number;
+                        web_fetch_requests: number;
+                    } | null;
+                    service_tier: 'standard' | 'priority' | 'batch' | null;
+                    cache_creation?: {
+                        ephemeral_1h_input_tokens: number;
+                        ephemeral_5m_input_tokens: number;
+                    } | null;
+                    inference_geo?: string | null;
+                    iterations?: Array<{
+                        type: 'message';
+                        input_tokens: number;
+                        output_tokens: number;
+                        cache_creation_input_tokens: number;
+                        cache_read_input_tokens: number;
+                        cache_creation: {
+                            ephemeral_1h_input_tokens: number;
+                            ephemeral_5m_input_tokens: number;
+                        } | null;
+                        model: string;
+                    } | {
+                        type: 'compaction';
+                        input_tokens: number;
+                        output_tokens: number;
+                        cache_creation_input_tokens: number;
+                        cache_read_input_tokens: number;
+                        cache_creation: {
+                            ephemeral_1h_input_tokens: number;
+                            ephemeral_5m_input_tokens: number;
+                        } | null;
+                    } | {
+                        type: 'advisor_message';
+                        input_tokens: number;
+                        output_tokens: number;
+                        cache_creation_input_tokens: number;
+                        cache_read_input_tokens: number;
+                        cache_creation: {
+                            ephemeral_1h_input_tokens: number;
+                            ephemeral_5m_input_tokens: number;
+                        } | null;
+                        model: string;
+                    } | {
+                        type: 'fallback_message';
+                        input_tokens: number;
+                        output_tokens: number;
+                        cache_creation_input_tokens: number;
+                        cache_read_input_tokens: number;
+                        cache_creation: {
+                            ephemeral_1h_input_tokens: number;
+                            ephemeral_5m_input_tokens: number;
+                        } | null;
+                        model: string;
+                    }> | null;
+                    output_tokens_details?: {
+                        text_tokens?: number;
+                        thinking_tokens?: number;
+                    } | null;
+                    speed?: 'standard' | 'fast' | null;
+                };
+                stop_details?: {
+                    type: 'early';
+                } | null;
+            } | {
+                [key: string]: string | number | boolean | Array<{
+                    [key: string]: string | number | boolean;
+                }>;
+            };
+            parent_tool_use_id: string | null;
+            timestamp?: string;
+        }>;
+    };
+};
+
+export type GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses[keyof GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses];
