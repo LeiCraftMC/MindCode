@@ -44,7 +44,7 @@ The Hono API is versioned. `server/lib/api/index.ts` holds the `API` class, whic
 
 ### Claude Code integration
 
-`server/lib/claude/sessionRunner.ts` implements `ClaudeSessionRunner`, a static state machine that manages WebSocket clients authenticated through the same session tokens as the REST API. It drives the `@anthropic-ai/claude-agent-sdk` `query()` API, forwards events (deltas, tool_use summaries, results, system events) back to the browser, and supports `start`, `message`, `cancel` and `auth` message types. Sessions are isolated per user via `mindcode/user-{userId}` directories and persisted as JSONL files by the SDK itself. The frontend WebSocket lives in `app/composables/useClaudeWebSocket.ts` and the main UI page in `app/pages/(dashboard)/code/index.vue`.
+`server/lib/claude/sessionRunner.ts` implements `ClaudeSessionRunner`, a static state machine that manages WebSocket clients authenticated through the same session tokens as the REST API. It drives the `@anthropic-ai/claude-agent-sdk` `query()` API, forwards events (deltas, tool_use summaries, results, system events) back to the browser, and supports `start`, `message`, `cancel` and `auth` message types. Sessions are isolated per user via `mindcode/user-{userId}` directories and persisted as JSONL files by the SDK itself. The frontend WebSocket lives in `app/composables/useClaudeWebSocket.ts` and the main chat UI in `app/pages/(dashboard)/projects/[absolute_path]/sessions/[session_id].vue`.
 
 ### Frontend
 

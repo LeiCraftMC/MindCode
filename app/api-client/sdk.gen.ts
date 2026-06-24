@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Composable, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdError, DeleteAdminUsersByUserIdResponse, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetAccountData, GetAccountError, GetAccountResponse, GetAdminUsersByUserIdData, GetAdminUsersByUserIdError, GetAdminUsersByUserIdResponse, GetAdminUsersData, GetAdminUsersResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, GetClaudeProjectsData, GetClaudeProjectsResponse, PostAdminUsersData, PostAdminUsersError, PostAdminUsersResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestError, PostAuthResetPasswordRequestResponse, PostAuthResetPasswordResponse, PutAccountData, PutAccountError, PutAccountPasswordData, PutAccountPasswordError, PutAccountPasswordResponse, PutAccountResponse, PutAdminUsersByUserIdData, PutAdminUsersByUserIdError, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordError, PutAdminUsersByUserIdPasswordResponse, PutAdminUsersByUserIdResponse, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse } from './types.gen';
+import type { DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdError, DeleteAdminUsersByUserIdResponse, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetAccountData, GetAccountError, GetAccountResponse, GetAdminUsersByUserIdData, GetAdminUsersByUserIdError, GetAdminUsersByUserIdResponse, GetAdminUsersData, GetAdminUsersResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, GetClaudeProjectsData, GetClaudeProjectsResponse, GetUsersSearchData, GetUsersSearchError, GetUsersSearchResponse, PostAdminUsersData, PostAdminUsersError, PostAdminUsersResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestError, PostAuthResetPasswordRequestResponse, PostAuthResetPasswordResponse, PutAccountData, PutAccountError, PutAccountPasswordData, PutAccountPasswordError, PutAccountPasswordResponse, PutAccountResponse, PutAdminUsersByUserIdData, PutAdminUsersByUserIdError, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordError, PutAdminUsersByUserIdPasswordResponse, PutAdminUsersByUserIdResponse, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse } from './types.gen';
 
 export type Options<TComposable extends Composable = '$fetch', TData extends TDataShape = TDataShape, ResT = unknown, DefaultT = undefined> = Options2<TComposable, TData, ResT, DefaultT> & {
     /**
@@ -23,7 +23,7 @@ export type Options<TComposable extends Composable = '$fetch', TData extends TDa
  *
  * Authenticate a user with their username and password
  */
-export const postAuthLogin = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthLoginResponse = PostAuthLoginResponse>(options: Options<TComposable, PostAuthLoginData, PostAuthLoginResponse, DefaultT>): RequestResult<TComposable, PostAuthLoginResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostAuthLoginResponse | DefaultT, PostAuthLoginError, DefaultT>({
+export const postAuthLogin = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthLoginResponse = PostAuthLoginResponse>(options: Options<TComposable, PostAuthLoginData, PostAuthLoginResponse, DefaultT>): any => (options.client ?? client).post<TComposable, PostAuthLoginResponse | DefaultT, PostAuthLoginError, DefaultT>({
     url: '/auth/login',
     ...options,
     headers: {
@@ -37,7 +37,7 @@ export const postAuthLogin = <TComposable extends Composable = '$fetch', Default
  *
  * Retrieve the current user's session information
  */
-export const getAuthSession = <TComposable extends Composable = '$fetch', DefaultT extends GetAuthSessionResponse = GetAuthSessionResponse>(options: Options<TComposable, GetAuthSessionData, GetAuthSessionResponse, DefaultT>): RequestResult<TComposable, GetAuthSessionResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetAuthSessionResponse | DefaultT, GetAuthSessionError, DefaultT>({
+export const getAuthSession = <TComposable extends Composable = '$fetch', DefaultT extends GetAuthSessionResponse = GetAuthSessionResponse>(options: Options<TComposable, GetAuthSessionData, GetAuthSessionResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetAuthSessionResponse | DefaultT, GetAuthSessionError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/session',
     ...options
@@ -48,7 +48,7 @@ export const getAuthSession = <TComposable extends Composable = '$fetch', Defaul
  *
  * Invalidate the current user's session
  */
-export const postAuthLogout = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthLogoutResponse = PostAuthLogoutResponse>(options: Options<TComposable, PostAuthLogoutData, PostAuthLogoutResponse, DefaultT>): RequestResult<TComposable, PostAuthLogoutResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostAuthLogoutResponse | DefaultT, PostAuthLogoutError, DefaultT>({
+export const postAuthLogout = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthLogoutResponse = PostAuthLogoutResponse>(options: Options<TComposable, PostAuthLogoutData, PostAuthLogoutResponse, DefaultT>): any => (options.client ?? client).post<TComposable, PostAuthLogoutResponse | DefaultT, PostAuthLogoutError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/logout',
     ...options
@@ -59,7 +59,7 @@ export const postAuthLogout = <TComposable extends Composable = '$fetch', Defaul
  *
  * Reset your password using a valid reset token
  */
-export const postAuthResetPassword = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthResetPasswordResponse = PostAuthResetPasswordResponse>(options: Options<TComposable, PostAuthResetPasswordData, PostAuthResetPasswordResponse, DefaultT>): RequestResult<TComposable, PostAuthResetPasswordResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostAuthResetPasswordResponse | DefaultT, PostAuthResetPasswordError, DefaultT>({
+export const postAuthResetPassword = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthResetPasswordResponse = PostAuthResetPasswordResponse>(options: Options<TComposable, PostAuthResetPasswordData, PostAuthResetPasswordResponse, DefaultT>): any => (options.client ?? client).post<TComposable, PostAuthResetPasswordResponse | DefaultT, PostAuthResetPasswordError, DefaultT>({
     url: '/auth/reset-password',
     ...options,
     headers: {
@@ -73,7 +73,7 @@ export const postAuthResetPassword = <TComposable extends Composable = '$fetch',
  *
  * Request a password reset for a user using their username
  */
-export const postAuthResetPasswordRequest = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthResetPasswordRequestResponse = PostAuthResetPasswordRequestResponse>(options: Options<TComposable, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestResponse, DefaultT>): RequestResult<TComposable, PostAuthResetPasswordRequestResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostAuthResetPasswordRequestResponse | DefaultT, PostAuthResetPasswordRequestError, DefaultT>({
+export const postAuthResetPasswordRequest = <TComposable extends Composable = '$fetch', DefaultT extends PostAuthResetPasswordRequestResponse = PostAuthResetPasswordRequestResponse>(options: Options<TComposable, PostAuthResetPasswordRequestData, PostAuthResetPasswordRequestResponse, DefaultT>): any => (options.client ?? client).post<TComposable, PostAuthResetPasswordRequestResponse | DefaultT, PostAuthResetPasswordRequestError, DefaultT>({
     url: '/auth/reset-password/request',
     ...options,
     headers: {
@@ -87,7 +87,7 @@ export const postAuthResetPasswordRequest = <TComposable extends Composable = '$
  *
  * Permanently delete the authenticated user's account.
  */
-export const deleteAccount = <TComposable extends Composable = '$fetch', DefaultT extends DeleteAccountResponse = DeleteAccountResponse>(options: Options<TComposable, DeleteAccountData, DeleteAccountResponse, DefaultT>): RequestResult<TComposable, DeleteAccountResponse | DefaultT, DefaultT> => (options.client ?? client).delete<TComposable, DeleteAccountResponse | DefaultT, DeleteAccountError, DefaultT>({
+export const deleteAccount = <TComposable extends Composable = '$fetch', DefaultT extends DeleteAccountResponse = DeleteAccountResponse>(options: Options<TComposable, DeleteAccountData, DeleteAccountResponse, DefaultT>): any => (options.client ?? client).delete<TComposable, DeleteAccountResponse | DefaultT, DeleteAccountError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/account',
     ...options
@@ -98,7 +98,7 @@ export const deleteAccount = <TComposable extends Composable = '$fetch', Default
  *
  * Retrieve information about the authenticated user's account.
  */
-export const getAccount = <TComposable extends Composable = '$fetch', DefaultT extends GetAccountResponse = GetAccountResponse>(options: Options<TComposable, GetAccountData, GetAccountResponse, DefaultT>): RequestResult<TComposable, GetAccountResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetAccountResponse | DefaultT, GetAccountError, DefaultT>({
+export const getAccount = <TComposable extends Composable = '$fetch', DefaultT extends GetAccountResponse = GetAccountResponse>(options: Options<TComposable, GetAccountData, GetAccountResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetAccountResponse | DefaultT, GetAccountError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/account',
     ...options
@@ -109,7 +109,7 @@ export const getAccount = <TComposable extends Composable = '$fetch', DefaultT e
  *
  * Update information about the authenticated user's account.
  */
-export const putAccount = <TComposable extends Composable = '$fetch', DefaultT extends PutAccountResponse = PutAccountResponse>(options: Options<TComposable, PutAccountData, PutAccountResponse, DefaultT>): RequestResult<TComposable, PutAccountResponse | DefaultT, DefaultT> => (options.client ?? client).put<TComposable, PutAccountResponse | DefaultT, PutAccountError, DefaultT>({
+export const putAccount = <TComposable extends Composable = '$fetch', DefaultT extends PutAccountResponse = PutAccountResponse>(options: Options<TComposable, PutAccountData, PutAccountResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutAccountResponse | DefaultT, PutAccountError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/account',
     ...options,
@@ -124,7 +124,7 @@ export const putAccount = <TComposable extends Composable = '$fetch', DefaultT e
  *
  * Change the password of the authenticated user's account.
  */
-export const putAccountPassword = <TComposable extends Composable = '$fetch', DefaultT extends PutAccountPasswordResponse = PutAccountPasswordResponse>(options: Options<TComposable, PutAccountPasswordData, PutAccountPasswordResponse, DefaultT>): RequestResult<TComposable, PutAccountPasswordResponse | DefaultT, DefaultT> => (options.client ?? client).put<TComposable, PutAccountPasswordResponse | DefaultT, PutAccountPasswordError, DefaultT>({
+export const putAccountPassword = <TComposable extends Composable = '$fetch', DefaultT extends PutAccountPasswordResponse = PutAccountPasswordResponse>(options: Options<TComposable, PutAccountPasswordData, PutAccountPasswordResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutAccountPasswordResponse | DefaultT, PutAccountPasswordError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/account/password',
     ...options,
@@ -139,7 +139,7 @@ export const putAccountPassword = <TComposable extends Composable = '$fetch', De
  *
  * Retrieve MindCode accounts with optional role and search filters.
  */
-export const getAdminUsers = <TComposable extends Composable = '$fetch', DefaultT extends GetAdminUsersResponse = GetAdminUsersResponse>(options: Options<TComposable, GetAdminUsersData, GetAdminUsersResponse, DefaultT>): RequestResult<TComposable, GetAdminUsersResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetAdminUsersResponse | DefaultT, unknown, DefaultT>({
+export const getAdminUsers = <TComposable extends Composable = '$fetch', DefaultT extends GetAdminUsersResponse = GetAdminUsersResponse>(options: Options<TComposable, GetAdminUsersData, GetAdminUsersResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetAdminUsersResponse | DefaultT, unknown, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users',
     ...options
@@ -150,7 +150,7 @@ export const getAdminUsers = <TComposable extends Composable = '$fetch', Default
  *
  * Provision a new MindCode account with the desired role.
  */
-export const postAdminUsers = <TComposable extends Composable = '$fetch', DefaultT extends PostAdminUsersResponse = PostAdminUsersResponse>(options: Options<TComposable, PostAdminUsersData, PostAdminUsersResponse, DefaultT>): RequestResult<TComposable, PostAdminUsersResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostAdminUsersResponse | DefaultT, PostAdminUsersError, DefaultT>({
+export const postAdminUsers = <TComposable extends Composable = '$fetch', DefaultT extends PostAdminUsersResponse = PostAdminUsersResponse>(options: Options<TComposable, PostAdminUsersData, PostAdminUsersResponse, DefaultT>): any => (options.client ?? client).post<TComposable, PostAdminUsersResponse | DefaultT, PostAdminUsersError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users',
     ...options,
@@ -165,7 +165,7 @@ export const postAdminUsers = <TComposable extends Composable = '$fetch', Defaul
  *
  * Permanently remove a MindCode account.
  */
-export const deleteAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends DeleteAdminUsersByUserIdResponse = DeleteAdminUsersByUserIdResponse>(options: Options<TComposable, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdResponse, DefaultT>): RequestResult<TComposable, DeleteAdminUsersByUserIdResponse | DefaultT, DefaultT> => (options.client ?? client).delete<TComposable, DeleteAdminUsersByUserIdResponse | DefaultT, DeleteAdminUsersByUserIdError, DefaultT>({
+export const deleteAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends DeleteAdminUsersByUserIdResponse = DeleteAdminUsersByUserIdResponse>(options: Options<TComposable, DeleteAdminUsersByUserIdData, DeleteAdminUsersByUserIdResponse, DefaultT>): any => (options.client ?? client).delete<TComposable, DeleteAdminUsersByUserIdResponse | DefaultT, DeleteAdminUsersByUserIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users/{userId}',
     ...options
@@ -176,7 +176,7 @@ export const deleteAdminUsersByUserId = <TComposable extends Composable = '$fetc
  *
  * Retrieve details for a specific MindCode account.
  */
-export const getAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends GetAdminUsersByUserIdResponse = GetAdminUsersByUserIdResponse>(options: Options<TComposable, GetAdminUsersByUserIdData, GetAdminUsersByUserIdResponse, DefaultT>): RequestResult<TComposable, GetAdminUsersByUserIdResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetAdminUsersByUserIdResponse | DefaultT, GetAdminUsersByUserIdError, DefaultT>({
+export const getAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends GetAdminUsersByUserIdResponse = GetAdminUsersByUserIdResponse>(options: Options<TComposable, GetAdminUsersByUserIdData, GetAdminUsersByUserIdResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetAdminUsersByUserIdResponse | DefaultT, GetAdminUsersByUserIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users/{userId}',
     ...options
@@ -187,7 +187,7 @@ export const getAdminUsersByUserId = <TComposable extends Composable = '$fetch',
  *
  * Modify profile fields or role for a MindCode account.
  */
-export const putAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends PutAdminUsersByUserIdResponse = PutAdminUsersByUserIdResponse>(options: Options<TComposable, PutAdminUsersByUserIdData, PutAdminUsersByUserIdResponse, DefaultT>): RequestResult<TComposable, PutAdminUsersByUserIdResponse | DefaultT, DefaultT> => (options.client ?? client).put<TComposable, PutAdminUsersByUserIdResponse | DefaultT, PutAdminUsersByUserIdError, DefaultT>({
+export const putAdminUsersByUserId = <TComposable extends Composable = '$fetch', DefaultT extends PutAdminUsersByUserIdResponse = PutAdminUsersByUserIdResponse>(options: Options<TComposable, PutAdminUsersByUserIdData, PutAdminUsersByUserIdResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutAdminUsersByUserIdResponse | DefaultT, PutAdminUsersByUserIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users/{userId}',
     ...options,
@@ -202,7 +202,7 @@ export const putAdminUsersByUserId = <TComposable extends Composable = '$fetch',
  *
  * Set a new password for a MindCode account and revoke active sessions.
  */
-export const putAdminUsersByUserIdPassword = <TComposable extends Composable = '$fetch', DefaultT extends PutAdminUsersByUserIdPasswordResponse = PutAdminUsersByUserIdPasswordResponse>(options: Options<TComposable, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordResponse, DefaultT>): RequestResult<TComposable, PutAdminUsersByUserIdPasswordResponse | DefaultT, DefaultT> => (options.client ?? client).put<TComposable, PutAdminUsersByUserIdPasswordResponse | DefaultT, PutAdminUsersByUserIdPasswordError, DefaultT>({
+export const putAdminUsersByUserIdPassword = <TComposable extends Composable = '$fetch', DefaultT extends PutAdminUsersByUserIdPasswordResponse = PutAdminUsersByUserIdPasswordResponse>(options: Options<TComposable, PutAdminUsersByUserIdPasswordData, PutAdminUsersByUserIdPasswordResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutAdminUsersByUserIdPasswordResponse | DefaultT, PutAdminUsersByUserIdPasswordError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/admin/users/{userId}/password',
     ...options,
@@ -213,11 +213,22 @@ export const putAdminUsersByUserIdPassword = <TComposable extends Composable = '
 });
 
 /**
+ * Search users
+ *
+ * Find other users by username or display name. Returns public profile fields only.
+ */
+export const getUsersSearch = <TComposable extends Composable = '$fetch', DefaultT extends GetUsersSearchResponse = GetUsersSearchResponse>(options: Options<TComposable, GetUsersSearchData, GetUsersSearchResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetUsersSearchResponse | DefaultT, GetUsersSearchError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/search',
+    ...options
+});
+
+/**
  * List All Projects
  *
  * Retrieve a list of all existing projects.
  */
-export const getClaudeProjects = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsResponse = GetClaudeProjectsResponse>(options: Options<TComposable, GetClaudeProjectsData, GetClaudeProjectsResponse, DefaultT>): RequestResult<TComposable, GetClaudeProjectsResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetClaudeProjectsResponse | DefaultT, unknown, DefaultT>({
+export const getClaudeProjects = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsResponse = GetClaudeProjectsResponse>(options: Options<TComposable, GetClaudeProjectsData, GetClaudeProjectsResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsResponse | DefaultT, unknown, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects',
     ...options
@@ -228,7 +239,7 @@ export const getClaudeProjects = <TComposable extends Composable = '$fetch', Def
  *
  * Retrieve a specific project by its absolute path.
  */
-export const getClaudeProjectsByAbsolutePath = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathResponse = GetClaudeProjectsByAbsolutePathResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, DefaultT>): RequestResult<TComposable, GetClaudeProjectsByAbsolutePathResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathResponse | DefaultT, unknown, DefaultT>({
+export const getClaudeProjectsByAbsolutePath = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathResponse = GetClaudeProjectsByAbsolutePathResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathData, GetClaudeProjectsByAbsolutePathResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathResponse | DefaultT, unknown, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}',
     ...options
@@ -239,7 +250,7 @@ export const getClaudeProjectsByAbsolutePath = <TComposable extends Composable =
  *
  * Retrieve all Claude Code sessions for a specific project.
  */
-export const getClaudeProjectsByAbsolutePathSessions = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsResponse = GetClaudeProjectsByAbsolutePathSessionsResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, DefaultT>): RequestResult<TComposable, GetClaudeProjectsByAbsolutePathSessionsResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsResponse | DefaultT, unknown, DefaultT>({
+export const getClaudeProjectsByAbsolutePathSessions = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsResponse = GetClaudeProjectsByAbsolutePathSessionsResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsData, GetClaudeProjectsByAbsolutePathSessionsResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsResponse | DefaultT, unknown, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}/sessions',
     ...options
@@ -250,7 +261,7 @@ export const getClaudeProjectsByAbsolutePathSessions = <TComposable extends Comp
  *
  * Delete a specific Claude Code session within a project.
  */
-export const deleteClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): RequestResult<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DefaultT> => (options.client ?? client).delete<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+export const deleteClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdData, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).delete<TComposable, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DeleteClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}/sessions/{session_id}',
     ...options
@@ -261,7 +272,7 @@ export const deleteClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposabl
  *
  * Retrieve a specific Claude Code session within a project.
  */
-export const getClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): RequestResult<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+export const getClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}/sessions/{session_id}',
     ...options
@@ -272,7 +283,7 @@ export const getClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable e
  *
  * Rename a specific Claude Code session within a project.
  */
-export const putClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): RequestResult<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, DefaultT> => (options.client ?? client).put<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
+export const putClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable extends Composable = '$fetch', DefaultT extends PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse = PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse>(options: Options<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdData, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse, DefaultT>): any => (options.client ?? client).put<TComposable, PutClaudeProjectsByAbsolutePathSessionsBySessionIdResponse | DefaultT, PutClaudeProjectsByAbsolutePathSessionsBySessionIdError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}/sessions/{session_id}',
     ...options,
@@ -287,7 +298,7 @@ export const putClaudeProjectsByAbsolutePathSessionsBySessionId = <TComposable e
  *
  * Retrieve messages for a specific Claude Code session within a project.
  */
-export const getClaudeProjectsByAbsolutePathSessionsBySessionIdMessages = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, DefaultT>): RequestResult<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, DefaultT>({
+export const getClaudeProjectsByAbsolutePathSessionsBySessionIdMessages = <TComposable extends Composable = '$fetch', DefaultT extends GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse = GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse>(options: Options<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesData, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse, DefaultT>): any => (options.client ?? client).get<TComposable, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponse | DefaultT, GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/claude/projects/{absolute_path}/sessions/{session_id}/messages',
     ...options

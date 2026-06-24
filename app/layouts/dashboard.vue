@@ -127,7 +127,7 @@ const displaySidebars = computed(() => {
 
 <template>
     <NuxtLoadingIndicator
-        color="#00bcff"
+        color="#f97316"
         position="top"
     />
 

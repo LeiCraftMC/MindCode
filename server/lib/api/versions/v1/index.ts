@@ -4,6 +4,7 @@ import type { GenerateSpecOptions } from "hono-openapi";
 import { router as authRouter } from "./routes/auth";
 import { router as accountRouter } from "./routes/account";
 import { router as adminRouter } from "./routes/admin";
+import { router as usersRouter } from "./routes/users";
 import { router as claudeRouter } from "./routes/claude";
 import { authMiddlewareV1 } from "./middleware/auth";
 
@@ -100,6 +101,7 @@ router.use(authMiddlewareV1);
 router.route("/", authRouter);
 router.route("/", accountRouter);
 router.route("/", adminRouter);
+router.route("/", usersRouter);
 router.route("/", claudeRouter);
 
 export class APIv1Router extends APIVersionRouter {

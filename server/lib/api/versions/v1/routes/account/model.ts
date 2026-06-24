@@ -16,6 +16,7 @@ export namespace AccountModel.UpdateInfo {
 
     export const Body = createUpdateSchema(DB.Tables.users, {
         username: UserDataPolicys.Username,
+        display_name: z.string().min(1).max(64),
         email: z.email('Invalid email')
     }).omit({
         id: true,

@@ -56,7 +56,7 @@ export class DB {
 
         const APP_URL = ConfigHandler.getConfig()?.MINDCODE_APP_URL || "https://{APP_URL}";
 
-        Bun.write(`${configBaseDir}/initial_admin_password_reset_token.txt`, `${APP_URL}/auth/reset-password?token=${passwordResetToken}`, {
+        await Bun.write(`${configBaseDir}/initial_admin_password_reset_token.txt`, `${APP_URL}/auth/reset-password?token=${passwordResetToken}`, {
             mode: 0o600,
             createPath: true
         });
@@ -64,7 +64,7 @@ export class DB {
         Logger.info(
             `Initial admin user created with username: ${username}.\n` +
             `You can set the password under ${APP_URL}/auth/reset-password?token=${passwordResetToken}\n` +
-            `The url is also safed at ${configBaseDir}/initial_admin_password_reset_token.txt\n`
+            `The url is also saved at ${configBaseDir}/initial_admin_password_reset_token.txt\n`
         );
     }
 

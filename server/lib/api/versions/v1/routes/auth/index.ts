@@ -20,12 +20,17 @@ async function getDummyHash(): Promise<string> {
     return DUMMY_PASSWORD_HASH;
 }
 
-// Simple in-memory rate limiter for login to reduce brute-force risk
+// In-memory login throttle, scoped per IP + per username.
+//
+// A purely per-username ("global") counter was removed: because it spanned all IPs and
+// was incremented before the password was even checked, anyone who knew a username
+// (e.g. the default admin) could lock the real owner out for the whole window with a
+// handful of bad passwords — a trivial account-lockout DoS. Per-IP scoping keeps
+// brute-force protection, and the counter is only bumped on a *failed* attempt, so a
+// correct password under the cap is never rejected.
 const LOGIN_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_MAX_GLOBAL_ATTEMPTS = 15; // Per-username limit across all IPs
+const LOGIN_MAX_ATTEMPTS = 10;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const globalLoginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 // Periodic cleanup to prevent unbounded memory growth — runs every 5 minutes
 const LOGIN_CLEANUP_INTERVAL = setInterval(() => {
@@ -33,14 +38,21 @@ const LOGIN_CLEANUP_INTERVAL = setInterval(() => {
     for (const [key, entry] of loginAttempts) {
         if (entry.resetAt <= now) loginAttempts.delete(key);
     }
-    for (const [key, entry] of globalLoginAttempts) {
-        if (entry.resetAt <= now) globalLoginAttempts.delete(key);
-    }
 }, LOGIN_WINDOW_MS);
 // Allow the process to exit without waiting for this interval
 LOGIN_CLEANUP_INTERVAL.unref();
 
 function getClientId(c: Context) {
+    // Behind a reverse proxy (the Nitro-embedded production path builds a synthetic
+    // Request with no remoteAddr), fall back to forwarded headers so per-IP throttling
+    // does not collapse into a single shared "unknown" bucket.
+    const forwarded = c.req.header("x-forwarded-for");
+    if (forwarded) {
+        const first = forwarded.split(",")[0]?.trim();
+        if (first) return first;
+    }
+    const realIp = c.req.header("x-real-ip");
+    if (realIp) return realIp.trim();
     // @ts-ignore bun/hono provides a native request with connection info
     const remote = (c.req.raw as any)?.remoteAddr?.hostname;
     return remote || "unknown";
@@ -50,18 +62,14 @@ function getLoginAttemptKey(clientId: string, username: string) {
     return `${clientId}:${username.toLowerCase()}`;
 }
 
-function getGlobalLoginAttemptKey(username: string) {
-    return username.toLowerCase();
+function isLoginRateLimited(loginAttemptKey: string): boolean {
+    const entry = loginAttempts.get(loginAttemptKey);
+    return !!entry && entry.resetAt > Date.now() && entry.count >= LOGIN_MAX_ATTEMPTS;
 }
 
-/**
- * Register a failed attempt, incrementing the counter atomically.
- * Returns the new count after increment — no await between read and write.
- */
-function registerFailedLoginAttempt(loginAttemptKey: string, globalKey: string): { perIpCount: number; globalCount: number } {
+/** Record a *failed* login attempt for this IP+username and return the new count. */
+function registerFailedLoginAttempt(loginAttemptKey: string): number {
     const now = Date.now();
-
-    // Per-IP-per-username counter
     let entry = loginAttempts.get(loginAttemptKey);
     if (!entry || entry.resetAt <= now) {
         entry = { count: 1, resetAt: now + LOGIN_WINDOW_MS };
@@ -69,22 +77,11 @@ function registerFailedLoginAttempt(loginAttemptKey: string, globalKey: string):
     } else {
         entry.count += 1;
     }
-
-    // Global per-username counter
-    let globalEntry = globalLoginAttempts.get(globalKey);
-    if (!globalEntry || globalEntry.resetAt <= now) {
-        globalEntry = { count: 1, resetAt: now + LOGIN_WINDOW_MS };
-        globalLoginAttempts.set(globalKey, globalEntry);
-    } else {
-        globalEntry.count += 1;
-    }
-
-    return { perIpCount: entry.count, globalCount: globalEntry.count };
+    return entry.count;
 }
 
-function clearFailedLoginAttempts(loginAttemptKey: string, globalKey: string) {
+function clearFailedLoginAttempts(loginAttemptKey: string) {
     loginAttempts.delete(loginAttemptKey);
-    globalLoginAttempts.delete(globalKey);
 }
 
 export const router = new Hono().basePath('/auth');
@@ -117,31 +114,31 @@ router.post('/login',
 
         const clientId = getClientId(c);
         const loginAttemptKey = getLoginAttemptKey(clientId, username);
-        const globalKey = getGlobalLoginAttemptKey(username);
 
-        // Increment counters FIRST, then check limits — eliminates TOCTOU race
-        const { perIpCount, globalCount } = registerFailedLoginAttempt(loginAttemptKey, globalKey);
-
-        if (perIpCount > LOGIN_MAX_ATTEMPTS || globalCount > LOGIN_MAX_GLOBAL_ATTEMPTS) {
+        // Block over-limit clients up front. Only *failed* attempts are counted (below),
+        // so a correct password is never rejected while still under the cap.
+        if (isLoginRateLimited(loginAttemptKey)) {
             const retrySeconds = Math.max(1, Math.ceil(LOGIN_WINDOW_MS / 1000));
             c.header("Retry-After", retrySeconds.toString());
-            return c.json({ success: false, code: 429, message: `Too many login attempts. Try again in ${retrySeconds}s` }, 429);
+            return APIResponse.tooManyRequests(c, `Too many login attempts. Try again in ${retrySeconds}s`);
         }
 
         const user = DB.instance().select().from(DB.Tables.users).where(eq(DB.Tables.users.username, username)).get();
         if (!user) {
             // Timing-normalized: always run a bcrypt call to prevent username enumeration
             await Bun.password.verify("dummy-timing-constant", await getDummyHash());
+            registerFailedLoginAttempt(loginAttemptKey);
             return APIResponse.unauthorized(c, "Invalid username or password");
         }
 
         const passwordMatch = await Bun.password.verify(password, user.password_hash);
         if (!passwordMatch) {
+            registerFailedLoginAttempt(loginAttemptKey);
             return APIResponse.unauthorized(c, "Invalid username or password");
         }
 
-        // Successful login — clear all counters for this user
-        clearFailedLoginAttempts(loginAttemptKey, globalKey);
+        // Successful login — clear the failure counter for this IP+username.
+        clearFailedLoginAttempts(loginAttemptKey);
 
         const session = await SessionHandler.createSession(user.id);
 

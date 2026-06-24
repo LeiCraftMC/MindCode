@@ -15,6 +15,7 @@ const route = useRoute();
 const reset_token = route.query.token as string || '';
 
 const toast = useToast();
+const loading = ref(false);
 
 const fields: AuthFormField[] = [
     {
@@ -71,32 +72,40 @@ const validate = (state: Partial<NewPasswordSchema>): FormError[] => {
     return errors;
 };
 async function onSubmit(payload: FormSubmitEvent<NewPasswordSchema>) {
+    // A reset token is single-use; guard against double-submit re-using a consumed token.
+    if (loading.value) return;
+    loading.value = true;
 
-    const result = await useAPI((api) => {
-        return api.postAuthResetPassword({
-            body: {
-                reset_token,
-                new_password: payload.data.password,
-            }
-        });
-    });
-
-
-    if (result.success) {
-
-        toast.add({
-            title: 'Password Reset Successful',
-            description: 'Your password has been reset successfully.'
+    try {
+        const result = await useAPI((api) => {
+            return api.postAuthResetPassword({
+                body: {
+                    reset_token,
+                    new_password: payload.data.password,
+                }
+            });
         });
 
-        await navigateTo("/auth/login");
-        return;
+        if (result.success) {
+            toast.add({
+                title: 'Password Reset Successful',
+                description: 'Your password has been reset successfully.',
+                icon: 'i-lucide-check',
+                color: 'success'
+            });
 
-    } else {
-        toast.add({
-            title: 'Password Reset Failed',
-            description: 'An error occurred during password reset.'
-        });
+            await navigateTo("/auth/login");
+            return;
+        } else {
+            toast.add({
+                title: 'Password Reset Failed',
+                description: 'An error occurred during password reset.',
+                icon: 'i-lucide-alert-circle',
+                color: 'error'
+            });
+        }
+    } finally {
+        loading.value = false;
     }
 }
 </script>
@@ -112,6 +121,8 @@ async function onSubmit(payload: FormSubmitEvent<NewPasswordSchema>) {
             @submit="onSubmit"
             :submit="{
                 label: 'Reset Password',
+                loading,
+                disabled: loading,
             }"
         >
             <template #footer>
@@ -119,7 +130,7 @@ async function onSubmit(payload: FormSubmitEvent<NewPasswordSchema>) {
                     Remembered your password?
                     <NuxtLink
                         to="/auth/login"
-                        class="text-sky-400 hover:underline"
+                        class="text-primary-400 hover:underline"
                     >
                         Login here
                     </NuxtLink>
@@ -134,7 +145,7 @@ async function onSubmit(payload: FormSubmitEvent<NewPasswordSchema>) {
         </div>
         <NuxtLink
             to="/auth/forgot-password"
-            class="text-sky-400 hover:underline text-center"
+            class="text-primary-400 hover:underline text-center"
         >
             Request a new password reset
         </NuxtLink>

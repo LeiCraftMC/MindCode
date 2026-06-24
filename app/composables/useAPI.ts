@@ -41,11 +41,11 @@ class AsyncRequestTaskWrapper<TReturn> {
 
     async execute(): Promise<TReturn> {
         this.loading.value = true;
-
-        const result = await this.handler();
-
-        this.loading.value = false;
-        return result;
+        try {
+            return await this.handler();
+        } finally {
+            this.loading.value = false;
+        }
     }
 
 }
@@ -130,9 +130,6 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 
         await this.refreshFunction!();
 
-        // console.log("after refresh source:", this._activeDataRef?.value); 
-        // console.log("after refresh target:", this.data.value); // This will now be CORRECT
-
         return this.data;
     }
 
@@ -168,14 +165,10 @@ export async function useAPI<TReturn>(handler: (api: UseAPITypes.APIClient) => T
 
             const result = await handler(baseAPIClient);
 
-            if (
-                (result as any)?.success === false &&
-                (result as any)?.code === 401 &&
-                (
-                    (result as any)?.message === "Invalid or expired token" ||
-                    (result as any)?.message === "Missing or invalid Authorization header"
-                )
-            ) {
+            // Any 401 means the stored token is no longer valid — clear it and redirect.
+            // (Previously this matched specific server messages, which had drifted and
+            // silently stopped triggering the redirect.)
+            if ((result as any)?.success === false && (result as any)?.code === 401) {
                 updateAPIClient(null);
                 sessionToken.value = null;
                 if (!disableAuthRedirect) {

@@ -50,7 +50,16 @@ export namespace ProjectModel.GetProjectByPath {
             z.string().meta({ title: "Decoded project absolute path" }),
             {
                 encode: (val) => encodeURIComponent(val),
-                decode: (val) => decodeURIComponent(val)
+                // Hono already decodes path params once; guard the second decode so a
+                // literal '%' in a path (e.g. "/home/u/100% done") cannot throw a
+                // URIError and crash the route with a 500.
+                decode: (val) => {
+                    try {
+                        return decodeURIComponent(val);
+                    } catch {
+                        return val;
+                    }
+                }
             }
         )
     });
@@ -58,7 +67,9 @@ export namespace ProjectModel.GetProjectByPath {
 
 
     export const Query = z.object({
-        with_sessions: z.coerce.boolean().optional().default(false).meta({ title: "Whether to include sessions in the response" })
+        // z.coerce.boolean() follows JS truthiness ("false" -> true), so with_sessions=false
+        // was impossible to express. z.stringbool() maps "false"/"0" -> false, "true"/"1" -> true.
+        with_sessions: z.stringbool().optional().default(false).meta({ title: "Whether to include sessions in the response" })
     });
 
 

@@ -97,8 +97,8 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
 		<div class="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
 			<div class="px-6 py-4 border-b border-slate-800">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center">
-						<UIcon name="i-lucide-user" class="w-5 h-5 text-sky-400" />
+					<div class="w-10 h-10 rounded-lg bg-primary-500/10 flex items-center justify-center">
+						<UIcon name="i-lucide-user" class="w-5 h-5 text-primary-400" />
 					</div>
 					<div>
 						<h3 class="font-medium text-white">Profile Information</h3>
@@ -180,7 +180,7 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
 		<!-- Account Info Card -->
 		<div class="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm p-6">
 			<div class="flex items-center gap-4">
-				<div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+				<div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
 					<span class="text-xl font-bold text-white">{{ profile.display_name?.charAt(0) || profile.username?.charAt(0) || '?' }}</span>
 				</div>
 				<div>
@@ -188,9 +188,9 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
 					<p class="text-sm text-slate-400">@{{ profile.username }}</p>
 				</div>
 				<div class="ml-auto">
-					<UBadge 
-						:label="userInfo.role" 
-						:color="userInfo.role === 'admin' ? 'error' : userInfo.role === 'developer' ? 'primary' : 'neutral'"
+					<UBadge
+						:label="userInfo.role"
+						:color="getRoleColor(userInfo.role)"
 						size="sm"
 					/>
 				</div>

@@ -177,7 +177,7 @@ function projectUrl(project: { absolute_path: string }): string {
         title="New Project"
         description="Enter the absolute path to a directory on your server to create a new Claude Code project."
         icon="i-lucide-folder-plus"
-        icon-color="sky"
+        icon-color="primary"
         :loading="isCreating"
         @close="newProjectOpen = false"
     >

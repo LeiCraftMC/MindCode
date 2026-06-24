@@ -4,12 +4,9 @@ import type { FormError, FormSubmitEvent } from '@nuxt/ui'
 import { useUserInfoStore } from '~/composables/stores/useUserStore'
 
 const toast = useToast()
-const overlay = useOverlay()
 
 const passwordLoading = ref(false)
-const deleteLoading = ref(false)
 const deleteConfirmOpen = ref(false)
-const deleteConfirmText = ref('')
 
 const passwordSchema = z.object({
 	current_password: z.string('Current Password is required').trim().min(1, 'Current Password is required'),
@@ -84,51 +81,31 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
 	}
 }
 
+// Confirmation ("type DELETE") and the open/loading state are handled by
+// <DashboardDeleteModal>; this just performs the deletion.
 async function onDeleteAccount() {
-	if (deleteConfirmText.value !== 'DELETE') {
+	const result = await useAPI((api) => api.deleteAccount({}))
+
+	if (result.success) {
 		toast.add({
-			title: 'Confirmation required',
-			description: 'Please type DELETE to confirm account deletion.',
-			icon: 'i-lucide-alert-triangle',
-			color: 'warning'
+			title: 'Account deleted',
+			description: 'Your account has been permanently deleted.',
+			icon: 'i-lucide-check',
+			color: 'success'
 		})
-		return
-	}
 
-	deleteLoading.value = true
-
-	try {
-		const result = await useAPI((api) => api.deleteAccount({}))
-
-		if (result.success) {
-			toast.add({
-				title: 'Account deleted',
-				description: 'Your account has been permanently deleted.',
-				icon: 'i-lucide-check',
-				color: 'success'
-			})
-
-			await useUserInfoStore().clear()
-			useAppCookies().sessionToken.get()!.value = null;
-			await navigateTo('/')
-		} else {
-			toast.add({
-				title: 'Error',
-				description: result.message || 'An error occurred while deleting your account.',
-				icon: 'i-lucide-alert-circle',
-				color: 'error'
-			})
-		}
-	} catch (error) {
+		await useUserInfoStore().clear()
+		useAppCookies().sessionToken.get()!.value = null;
+		await navigateTo('/')
+	} else {
 		toast.add({
 			title: 'Error',
-			description: 'An unexpected error occurred.',
+			description: result.message || 'An error occurred while deleting your account.',
 			icon: 'i-lucide-alert-circle',
 			color: 'error'
 		})
-	} finally {
-		deleteLoading.value = false
-		deleteConfirmOpen.value = false
+		// Throw so the confirmation dialog stays open on failure.
+		throw new Error(result.message || 'Account deletion failed')
 	}
 }
 </script>
@@ -145,8 +122,8 @@ async function onDeleteAccount() {
 		<div class="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
 			<div class="px-6 py-4 border-b border-slate-800">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center">
-						<UIcon name="i-lucide-key-round" class="w-5 h-5 text-sky-400" />
+					<div class="w-10 h-10 rounded-lg bg-primary-500/10 flex items-center justify-center">
+						<UIcon name="i-lucide-key-round" class="w-5 h-5 text-primary-400" />
 					</div>
 					<div>
 						<h3 class="font-medium text-white">Change Password</h3>
@@ -252,49 +229,11 @@ async function onDeleteAccount() {
 		</div>
 
 		<!-- Delete Confirmation Modal -->
-		<DashboardModal
+		<DashboardDeleteModal
 			v-model:open="deleteConfirmOpen"
 			title="Delete Account"
-			description="This action is permanent"
-			icon="i-lucide-alert-triangle"
-			icon-color="error"
-		>
-			<div class="space-y-4">
-				<div class="p-4 rounded-lg bg-red-950/50 border border-red-900/50">
-					<p class="text-sm text-red-300">
-						<strong>Warning:</strong> All your data including packages, releases, and account information will be permanently deleted. This action cannot be reversed.
-					</p>
-				</div>
-
-				<div>
-					<label class="block text-sm font-medium text-slate-300 mb-2">
-						Type <span class="text-red-400">DELETE</span> to confirm
-					</label>
-					<UInput 
-						v-model="deleteConfirmText" 
-						type="text" 
-						placeholder="Type DELETE"
-						class="w-full"
-					/>
-				</div>
-
-				<div class="flex justify-end gap-3 pt-2">
-					<UButton 
-						label="Cancel" 
-						color="neutral" 
-						variant="ghost"
-						@click="deleteConfirmOpen = false; deleteConfirmText = ''"
-					/>
-					<UButton 
-						label="Delete Account" 
-						color="error"
-						:loading="deleteLoading"
-						:disabled="deleteConfirmText !== 'DELETE'"
-						icon="i-lucide-trash-2"
-						@click="onDeleteAccount"
-					/>
-				</div>
-			</div>
-		</DashboardModal>
+			warning-text="Your account and all associated data — including your Claude Code sessions and projects — will be permanently deleted. This action cannot be reversed."
+			:on-delete="onDeleteAccount"
+		/>
 	</div>
 </template>

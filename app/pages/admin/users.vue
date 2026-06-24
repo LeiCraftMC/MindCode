@@ -26,7 +26,8 @@ if (!userInfoStore.isValid(currentUser)) {
     throw new Error('User not authenticated but trying to access Admin Users');
 }
 
-if (currentUser.value.role !== "admin") {
+const isAdmin = currentUser.value.role === "admin";
+if (!isAdmin) {
     await navigateTo("/");
 }
 
@@ -50,6 +51,8 @@ const {
     loading,
     refresh,
 } = await useAPILazyAsyncData<AdminUser[]>("admin-users-list", async () => {
+    // Don't fire a doomed admin request when the access guard above is redirecting away.
+    if (!isAdmin) return [];
     const res = await useAPI((api) => api.getAdminUsers({}));
     if (!res.success) {
         toast.add({
@@ -237,16 +240,6 @@ async function onDeleteUser() {
     }
 }
 
-function getRoleColor(role: AdminUser["role"]) {
-    switch (role) {
-        case "admin":
-            return "error" as const;
-        case "developer":
-            return "info" as const;
-        default:
-            return "neutral" as const;
-    }
-}
 </script>
 
 <template>
@@ -418,7 +411,7 @@ function getRoleColor(role: AdminUser["role"]) {
         v-model:open="showPasswordModal"
         :title="`Reset Password: ${selectedUser?.username}`"
         icon="i-lucide-key"
-        icon-color="amber"
+        icon-color="warning"
     >
         <div class="space-y-4">
             <UFormField label="New Password">
