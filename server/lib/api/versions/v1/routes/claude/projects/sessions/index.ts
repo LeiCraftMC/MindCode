@@ -5,6 +5,7 @@ import { ProjectSessionModel } from "./model";
 import { ProjectModel } from "../model";
 import { APIRouteSpec, APIResponseSpec } from "@@/server/lib/api/utils/specHelpers";
 import { APIResponse } from "~~/server/lib/api/utils/api-res";
+import { deleteSession, getSessionInfo, getSessionMessages, renameSession } from "@anthropic-ai/claude-agent-sdk";
 
 export const router = new Hono().basePath('/sessions');
 
@@ -30,6 +31,30 @@ router.get('/',
 
 );
 
+router.use('/:session_id/*',
+
+    validator('param', ProjectSessionModel.GetBySessionId.Params),
+
+    async (c, next) => {
+        // @ts-ignore
+        const { session_id } = c.req.valid('param') as ProjectSessionModel.GetBySessionId.Params;
+        // @ts-ignore
+        const project = c.get('project') as ProjectModel.Project.WithSessions;
+
+        const session = project.sessions.find(s => s.session_id === session_id);
+
+        if (!session) {
+            return APIResponse.notFound(c, 'Session not found');
+        }
+
+        // @ts-ignore
+        c.set('session', session satisfies ProjectSessionModel.Session);
+
+        await next();
+    }
+)
+
+
 // GET /projects/:absolute_path/sessions/:session_id — get a specific session
 router.get('/:session_id',
 
@@ -44,21 +69,83 @@ router.get('/:session_id',
         )
     }),
 
-    validator('param', ProjectSessionModel.GetBySessionId.Params),
+    async (c) => {
+        // @ts-ignore
+        const session = c.get('session') as ProjectSessionModel.Session;
+
+        return APIResponse.success(c, 'Session retrieved successfully', session satisfies ProjectSessionModel.GetBySessionId.Response);
+    }
+
+);
+
+router.get('/:session_id/messages',
+
+    APIRouteSpec.authenticated({
+        summary: 'Get Project Session Messages',
+        description: "Retrieve messages for a specific Claude Code session within a project.",
+        tags: [DOCS_TAGS.CLAUDE_SESSIONS],
+
+        responses: APIResponseSpec.describeBasic(
+            APIResponseSpec.success('Session messages retrieved successfully', ProjectSessionModel.GetSessionMessages.Response),
+            APIResponseSpec.notFound('Session not found'),
+        )
+    }),
 
     async (c) => {
         // @ts-ignore
-        const { session_id } = c.req.valid('param') as ProjectSessionModel.GetBySessionId.Params;
-        // @ts-ignore
         const project = c.get('project') as ProjectModel.Project.WithSessions;
+        // @ts-ignore
+        const session = c.get('session') as ProjectSessionModel.Session;
 
-        const session = project.sessions.find(s => s.session_id === session_id);
+        const sessionMessages_raw = await getSessionMessages(session.session_id, {
+            dir: project.absolute_path
+        });
 
-        if (!session) {
-            return APIResponse.notFound(c, 'Session not found');
+        return APIResponse.success(c, 'Session messages retrieved successfully', sessionMessages_raw satisfies ProjectSessionModel.GetSessionMessages.Response);
+    }
+
+);
+
+// PUT /projects/:absolute_path/sessions/:session_id — update a session (rename)
+router.put('/:session_id',
+
+    APIRouteSpec.authenticated({
+        summary: 'Rename Project Session',
+        description: "Rename a specific Claude Code session within a project.",
+        tags: [DOCS_TAGS.CLAUDE_SESSIONS],
+
+        responses: APIResponseSpec.describeBasic(
+            APIResponseSpec.success('Session renamed successfully', ProjectSessionModel.GetBySessionId.Response),
+            APIResponseSpec.notFound('Session not found'),
+        )
+    }),
+
+    validator('json', ProjectSessionModel.UpdateSession.Body),
+
+    async (c) => {
+
+        // @ts-ignore
+        const session = c.get('session') as ProjectSessionModel.Session;
+
+        const { title } = c.req.valid('json') as ProjectSessionModel.UpdateSession.Body;
+
+        await renameSession(session.session_id, title);
+
+        const updatedSession_raw = await getSessionInfo(session.session_id);
+
+        if (!updatedSession_raw) {
+            return APIResponse.notFound(c, 'Internal error: Session not found after renaming');
         }
+        
+        const updatedSession = {
+            session_id: updatedSession_raw.sessionId,
+            title: updatedSession_raw.summary,
+            last_modified: updatedSession_raw.lastModified,
+            git_branch: updatedSession_raw.gitBranch,
+            created_at: updatedSession_raw.createdAt,
+        } satisfies ProjectSessionModel.Session;
 
-        return APIResponse.success(c, 'Session retrieved successfully', session satisfies ProjectSessionModel.GetBySessionId.Response);
+        return APIResponse.success(c, 'Session renamed successfully', updatedSession satisfies ProjectSessionModel.GetBySessionId.Response);
     }
 
 );
@@ -77,66 +164,14 @@ router.delete('/:session_id',
         )
     }),
 
-    validator('param', ProjectSessionModel.DeleteSession.Params),
-
     async (c) => {
         // @ts-ignore
-        const { session_id } = c.req.valid('param') as ProjectSessionModel.DeleteSession.Params;
-        // @ts-ignore
-        const project = c.get('project') as ProjectModel.Project.WithSessions;
+        const session = c.get('session') as ProjectSessionModel.Session;
 
-        const session = project.sessions.find(s => s.session_id === session_id);
-
-        if (!session) {
-            return APIResponse.notFound(c, 'Session not found');
-        }
-
-        const sdk = await import('@anthropic-ai/claude-agent-sdk');
-        await sdk.deleteSession(session_id);
+        await deleteSession(session.session_id);
 
         return APIResponse.successNoData(c, 'Session deleted successfully');
     }
 
 );
 
-// PATCH /projects/:absolute_path/sessions/:session_id — rename a session
-router.patch('/:session_id',
-
-    APIRouteSpec.authenticated({
-        summary: 'Rename Project Session',
-        description: "Rename a specific Claude Code session within a project.",
-        tags: [DOCS_TAGS.CLAUDE_SESSIONS],
-
-        responses: APIResponseSpec.describeBasic(
-            APIResponseSpec.success('Session renamed successfully', ProjectSessionModel.GetBySessionId.Response),
-            APIResponseSpec.notFound('Session not found'),
-        )
-    }),
-
-    validator('param', ProjectSessionModel.RenameSession.Params),
-    validator('json', ProjectSessionModel.RenameSession.Body),
-
-    async (c) => {
-        // @ts-ignore
-        const { session_id } = c.req.valid('param') as ProjectSessionModel.RenameSession.Params;
-        // @ts-ignore
-        const { title } = c.req.valid('json') as ProjectSessionModel.RenameSession.Body;
-        // @ts-ignore
-        const project = c.get('project') as ProjectModel.Project.WithSessions;
-
-        const session = project.sessions.find(s => s.session_id === session_id);
-
-        if (!session) {
-            return APIResponse.notFound(c, 'Session not found');
-        }
-
-        const sdk = await import('@anthropic-ai/claude-agent-sdk');
-        await sdk.renameSession(session_id, title);
-
-        return APIResponse.success(c, 'Session renamed successfully', {
-            ...session,
-            title,
-        } satisfies ProjectSessionModel.GetBySessionId.Response);
-    }
-
-);

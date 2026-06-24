@@ -34,23 +34,26 @@ export namespace ProjectSessionModel.GetBySessionId {
 
 }
 
-export namespace ProjectSessionModel.DeleteSession {
+export namespace ProjectSessionModel.GetSessionMessages {
 
-    export const Params = z.object({
-        session_id: z.string()
+    export const Message = z.object({
+        type: z.enum(['user', 'assistant', 'system']),
+        uuid: z.string(),
+        session_id: z.string(),
+        message: z.unknown(),
+        parent_tool_use_id: z.string().nullable()
     });
+    export type Message = z.infer<typeof Message>;
+        
 
-    export type Params = z.infer<typeof Params>;
+    export const Response = z.array(Message);
+    export type Response = z.infer<typeof Response>;
 
 }
 
-export namespace ProjectSessionModel.RenameSession {
 
-    export const Params = z.object({
-        session_id: z.string()
-    });
+export namespace ProjectSessionModel.UpdateSession {
 
-    export type Params = z.infer<typeof Params>;
 
     export const Body = z.object({
         title: z.string().min(1).max(255)
