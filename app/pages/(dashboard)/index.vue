@@ -17,6 +17,9 @@ if (!userInfoStore.isValid(user)) {
 }
 
 const isAdmin = computed(() => user.value?.role === 'admin');
+
+navigateTo('/projects');
+
 </script>
 
 <template>

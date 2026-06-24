@@ -15,7 +15,7 @@ const route = useRoute();
 const sidebarItems = computed(() => {
     const basicItems: NavigationMenuItem[] = [
         {
-            label: "Overview",
+            label: "Projects",
             icon: "i-lucide-layout-dashboard",
             to: "/projects",
         },
