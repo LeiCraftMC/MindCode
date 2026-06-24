@@ -96,24 +96,24 @@ export class API {
 
 	}
 
-	static async start(port: number, hostname: string) {
+	// static async start(port: number, hostname: string) {
 
-		if (!this.app) {
-			await this.init();
-		}
+	// 	if (!this.app) {
+	// 		await this.init();
+	// 	}
 
-		this.server = Bun.serve({ port, hostname, fetch: this.app!.fetch });
+	// 	this.server = Bun.serve({ port, hostname, fetch: this.app!.fetch });
 
-		Logger.log(`API is running at ${this.server?.hostname}:${this.server?.port}`);
-	}
+	// 	Logger.log(`API is running at ${this.server?.hostname}:${this.server?.port}`);
+	// }
 
-	static async stop() {
-		if (this.server) {
-			this.server.stop();
-			this.server = undefined;
-			Logger.log("API server stopped.");
-		}
-	}
+	// static async stop() {
+	// 	if (this.server) {
+	// 		this.server.stop();
+	// 		this.server = undefined;
+	// 		Logger.log("API server stopped.");
+	// 	}
+	// }
 
 	static getApp(): Hono {
 		if (!this.app) {
