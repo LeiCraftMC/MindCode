@@ -356,14 +356,6 @@ defineExpose({
                         class="hidden sm:inline-flex"
                         @click="handleRefresh"
                     />
-                    <!-- <UButton
-                        v-if="showRefresh"
-                        label="Refresh"
-                        icon="i-lucide-refresh-cw"
-                        color="neutral"
-                        variant="subtle"
-                        @click="handleRefresh"
-                    /> -->
 
                     <slot name="header-right" />
                 </div>

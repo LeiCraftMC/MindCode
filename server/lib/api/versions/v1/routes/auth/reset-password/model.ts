@@ -1,4 +1,4 @@
-import z, { email } from "zod";
+import { z } from "zod";
 import { UserDataPolicys } from "../../../../../utils/shared-models/accountData";
 
 export namespace ResetPasswordModel.RequestReset {

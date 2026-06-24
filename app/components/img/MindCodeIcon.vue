@@ -20,7 +20,7 @@
         M1 7 h1 v1 h-1
         M3 7 h2 v1 h-2
         M6 7 h1 v1 h-1
-    z" fill="rgb(0, 0, 72)" shape-rendering="crispEdges" />
+    z" fill="rgb(124, 45, 18)" shape-rendering="crispEdges" />
 
         <path d="
         M1 1 h2 v1 h-2
@@ -33,13 +33,13 @@
         M3 6 h2 v1 h-2
         M2 7 h1 v1 h-1
         M5 7 h1 v1 h-1
-    z" fill="rgb(0, 0, 193)" shape-rendering="crispEdges" />
+    z" fill="rgb(234, 88, 12)" shape-rendering="crispEdges" />
 
         <path d="
         M1 2 h2 v2 h-2
         M5 2 h2 v2 h-2
         M3 4 h2 v2 h-2 M5 5 h1 v2 h-1 M2 5 h1 v2 h-1
-    z" fill="rgb(0, 255, 255)" shape-rendering="crispEdges" />
+    z" fill="rgb(251, 146, 60)" shape-rendering="crispEdges" />
 
     </svg>
 </template>

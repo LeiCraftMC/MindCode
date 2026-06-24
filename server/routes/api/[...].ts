@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { API } from '../../lib/api'
-import { getRequestURL, getMethod, readRawBody } from 'h3'
+import { defineEventHandler, getRequestURL, getMethod, readRawBody } from 'h3'
 
 let wrapper: Hono | null = null
 

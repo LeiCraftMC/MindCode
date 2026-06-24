@@ -178,6 +178,7 @@ export const createClient = (config: Config = {}): Client => {
     const { opts, url } = await beforeRequest(options);
     return createSseClient({
       ...unwrapRefs(opts),
+      cache: undefined,
       body: opts.body as BodyInit | null | undefined,
       method,
       onRequest: undefined,

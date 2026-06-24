@@ -6,7 +6,7 @@ definePageMeta({
     layout: 'dashboard',
 });
 
-const absolute_path = decodeURIComponent(useRoute().params.absolute_path as string);
+const absolute_path = safeDecodeURIComponent(useRoute().params.absolute_path as string);
 
 let error = null;
 

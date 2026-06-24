@@ -701,6 +701,57 @@ export type PutAdminUsersByUserIdPasswordResponses = {
 
 export type PutAdminUsersByUserIdPasswordResponse = PutAdminUsersByUserIdPasswordResponses[keyof PutAdminUsersByUserIdPasswordResponses];
 
+export type GetUsersSearchData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Search term matched against username and display name.
+         */
+        q: string;
+    };
+    url: '/users/search';
+};
+
+export type GetUsersSearchErrors = {
+    /**
+     * Bad Request: Syntax or validation error in request
+     */
+    400: {
+        success: false;
+        code: 400;
+        message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Authentication required
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Authentication required';
+    };
+};
+
+export type GetUsersSearchError = GetUsersSearchErrors[keyof GetUsersSearchErrors];
+
+export type GetUsersSearchResponses = {
+    /**
+     * Users retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Users retrieved successfully';
+        data: Array<{
+            id: number;
+            username: string;
+            display_name: string;
+        }>;
+    };
+};
+
+export type GetUsersSearchResponse = GetUsersSearchResponses[keyof GetUsersSearchResponses];
+
 export type GetClaudeProjectsData = {
     body?: never;
     path?: never;

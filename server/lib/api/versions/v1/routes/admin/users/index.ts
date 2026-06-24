@@ -203,18 +203,26 @@ router.put('/:userId',
 
         const roleChanged = updates.role && updates.role !== user.role;
 
-        // Wrap the users table update and auth context update in a transaction
-        // to prevent partial failure: if the auth context update fails, the role
-        // change in the users table must be rolled back.
-        await DB.instance().transaction(async (tx) => {
-            await tx.update(DB.Tables.users).set(updates).where(
-                eq(DB.Tables.users.id, user.id)
-            ).run();
-
-            if (roleChanged && updates.role) {
-                await AuthHandler.changeUserRoleInAuthContexts(user.id, updates.role);
+        // Prevent removing the final administrator (would lock everyone out of /admin).
+        if (user.role === 'admin' && updates.role && updates.role !== 'admin') {
+            const admins = await DB.instance().select({ id: DB.Tables.users.id }).from(DB.Tables.users).where(
+                eq(DB.Tables.users.role, 'admin')
+            );
+            if (admins.length <= 1) {
+                return APIResponse.badRequest(c, "Cannot demote the last remaining administrator");
             }
-        });
+        }
+
+        // NOTE: bun-sqlite drizzle transactions are synchronous; an async callback commits
+        // before its awaited writes settle, so a transaction() wrapper here gives no real
+        // atomicity. Both writes are fast local SQLite ops, so run them sequentially.
+        await DB.instance().update(DB.Tables.users).set(updates).where(
+            eq(DB.Tables.users.id, user.id)
+        ).run();
+
+        if (roleChanged && updates.role) {
+            await AuthHandler.changeUserRoleInAuthContexts(user.id, updates.role);
+        }
 
         const refreshed = await DB.instance().select().from(DB.Tables.users).where(
             eq(DB.Tables.users.id, user.id)
@@ -276,13 +284,23 @@ router.delete('/:userId',
         responses: APIResponseSpec.describeBasic(
             APIResponseSpec.successNoData("User deleted successfully"),
             APIResponseSpec.notFound("User not found"),
-            APIResponseSpec.badRequest("Cannot delete user while they own publishers")
+            APIResponseSpec.badRequest("Cannot delete the last remaining administrator")
         )
     }),
 
     async (c) => {
         // @ts-ignore
         const user = c.get(TARGET_USER_KEY) as DB.Models.User;
+
+        // Prevent deleting the final administrator (would lock everyone out of /admin).
+        if (user.role === 'admin') {
+            const admins = await DB.instance().select({ id: DB.Tables.users.id }).from(DB.Tables.users).where(
+                eq(DB.Tables.users.role, 'admin')
+            );
+            if (admins.length <= 1) {
+                return APIResponse.badRequest(c, "Cannot delete the last remaining administrator");
+            }
+        }
 
         await AuthHandler.invalidateAllAuthContextsForUser(user.id);
 

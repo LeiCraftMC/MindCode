@@ -1,8 +1,6 @@
 import type {
     GetAccountResponses,
-    GetClaudeProjectsByAbsolutePathData,
-    GetClaudeProjectsByAbsolutePathResponses,
-    GetClaudeProjectsByAbsolutePathSessionsBySessionIdData
+    GetClaudeProjectsByAbsolutePathResponses
 } from "~/api-client";
 
 export namespace UtilityTypes {

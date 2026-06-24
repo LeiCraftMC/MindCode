@@ -1,5 +1,6 @@
 import { defineWebSocketHandler } from 'h3';
 import { ClaudeSessionRunner } from '../../lib/claude/sessionRunner';
+import { Logger } from '../../utils/logger';
 import type { Message } from 'crossws';
 
 export default defineWebSocketHandler({
@@ -7,7 +8,7 @@ export default defineWebSocketHandler({
         await ClaudeSessionRunner.handleOpen(peer);
     },
 
-    async close(peer, details) {
+    async close(peer) {
         await ClaudeSessionRunner.handleClose(peer);
     },
 
@@ -16,6 +17,6 @@ export default defineWebSocketHandler({
     },
 
     error(peer, error) {
-        console.error('Claude WebSocket error:', error);
+        Logger.error('Claude WebSocket error:', error);
     },
 });

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onKeyStroke } from '@vueuse/core';
+
 const props = defineProps<{
     modelValue: boolean;
     changes?: Array<{
@@ -15,6 +17,11 @@ const emit = defineEmits<{
 
 const filterOptions = ['Changes of last turn', 'All changes', 'Git changes'];
 const selectedFilter = ref(filterOptions[0]);
+
+// Close the mobile sheet on Escape.
+onKeyStroke('Escape', () => {
+    if (props.modelValue) emit('update:modelValue', false);
+});
 </script>
 
 <template>
@@ -73,6 +80,10 @@ const selectedFilter = ref(filterOptions[0]);
         />
 
         <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Review changes"
+            :aria-hidden="!modelValue"
             :class="[
                 'fixed z-50 left-0 right-0 bottom-0 bg-slate-950 border-t border-slate-800 rounded-t-2xl overflow-hidden xl:hidden transition-transform duration-300',
                 modelValue ? 'translate-y-0' : 'translate-y-full'

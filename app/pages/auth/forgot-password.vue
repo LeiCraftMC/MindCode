@@ -76,7 +76,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                     Remembered your password?
                     <NuxtLink
                         to="/auth/login"
-                        class="text-sky-400 hover:underline"
+                        class="text-primary-400 hover:underline"
                     >
                         Login here
                     </NuxtLink>
@@ -86,8 +86,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     </div>
     <div v-else class="text-center space-y-4">
         <div class="flex justify-center">
-            <div class="rounded-full bg-sky-500/10 p-3">
-                <UIcon name="i-lucide-mail-check" class="size-8 text-sky-400" />
+            <div class="rounded-full bg-primary-500/10 p-3">
+                <UIcon name="i-lucide-mail-check" class="size-8 text-primary-400" />
             </div>
         </div>
         <h2 class="text-xl font-semibold">Check Your Email</h2>
@@ -99,7 +99,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             Didn't receive an email?
             <button
                 type="button"
-                class="text-sky-400 hover:underline"
+                class="text-primary-400 hover:underline"
                 @click="submitted = false"
             >
                 Try again
@@ -108,12 +108,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         <div class="pt-4">
             <NuxtLink
                 to="/auth/login"
-                class="text-sm text-sky-400 hover:underline"
+                class="text-sm text-primary-400 hover:underline"
             >
                 Back to login
             </NuxtLink>
         </div>
     </div>
 </template>
-todo: change thius page
-forget passwort: has to be reset by administartor (admin create link) or if administartor account reset by cli

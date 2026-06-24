@@ -120,7 +120,6 @@ export class ConfigHandler {
         .add("MINDCODE_APP_URL", false)
 
         .add("MINDCODE_CLAUDE_BINARY_PATH", false)
-        .add("MINDCODE_CLAUDE_MAX_CONCURRENT", false)
         .add("MINDCODE_CLAUDE_DEFAULT_MODEL", false)
         .add("MINDCODE_CLAUDE_DEFAULT_EFFORT", false, ["low", "medium", "high", "xhigh", "max"])
         .add("MINDCODE_CLAUDE_ALLOWED_TOOLS", false)

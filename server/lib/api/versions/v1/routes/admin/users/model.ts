@@ -44,7 +44,11 @@ export namespace UsersModel {
     }
 
     export namespace Update {
-        export const Body = createUpdateSchema(DB.Tables.users).omit({
+        export const Body = createUpdateSchema(DB.Tables.users, {
+            username: UserDataPolicys.Username,
+            display_name: z.string().min(1).max(64),
+            email: z.email(),
+        }).omit({
             id: true,
             password_hash: true,
             created_at: true

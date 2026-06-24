@@ -3,22 +3,30 @@ import { useClaudeWebSocket } from '~/composables/useClaudeWebSocket';
 import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
 import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
 import { marked } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
 import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+// Renders untrusted assistant/tool markdown to HTML. The output is always
+// passed through DOMPurify before it reaches v-html to prevent DOM XSS.
 function renderMarkdown(text: string): string {
     if (!text) return '';
     try {
         const result = marked(text, { breaks: true, gfm: true });
-        return typeof result === 'string' ? result : '';
+        const html = typeof result === 'string' ? result : '';
+        return DOMPurify.sanitize(html);
     } catch {
-        return text;
+        return DOMPurify.sanitize(text);
     }
 }
 
 definePageMeta({
     layout: 'dashboard',
+    // Re-key on the full path so Nuxt mounts a fresh instance when switching sessions
+    // (or going from /new to the saved id). Without this the component is reused and
+    // keeps the previous session's state/history.
+    key: (route) => route.fullPath,
 });
 
 useSeoMeta({
@@ -29,7 +37,7 @@ useSeoMeta({
 // ── Route params ────────────────────────────────────────────────
 
 const route = useRoute();
-const absolute_path = decodeURIComponent(route.params.absolute_path as string);
+const absolute_path = safeDecodeURIComponent(route.params.absolute_path as string);
 const session_id = route.params.session_id as string;
 const isNewSession = session_id === 'new';
 
@@ -39,20 +47,32 @@ const ws = useClaudeWebSocket();
 
 // ── Chat state ──────────────────────────────────────────────────
 
+interface ToolCall {
+    name: string;
+    input: Record<string, any>;
+    tool_use_id: string;
+    result?: string;
+    isError?: boolean;
+}
+
 interface ChatMessage {
     role: 'user' | 'assistant' | 'tool';
     content: string;
     id: string | number;
-    toolCalls?: Array<{ name: string; input: Record<string, any>; tool_use_id: string }>;
+    toolCalls?: ToolCall[];
     thinking?: string;
     isStreaming?: boolean;
+    /** True when the user message is a slash-command invocation (rendered as a chip). */
+    isCommand?: boolean;
 }
 
 const messages = ref<ChatMessage[]>([]);
 const rawOutput = ref<string[]>([]);
 const inputText = ref('');
 const processing = ref(false);
-const connected = ref(false);
+// Reactive connection state straight from the socket, so a mid-session drop is reflected
+// in the header/input instead of staying stuck on "Connected".
+const connected = ws.connected;
 const errorMessage = ref<string | null>(null);
 const activeSessionId = ref<string | null>(null);
 const historyLoaded = ref(false);
@@ -82,6 +102,73 @@ const fileChanges = ref<Array<{
     removed?: number;
 }>>([]);
 
+// ── Attachments ──────────────────────────────────────────────────
+
+interface PendingAttachment {
+    name: string;
+    mediaType: string;
+    data: string; // base64
+    isImage: boolean;
+    size: number;
+}
+
+const attachments = ref<PendingAttachment[]>([]);
+const fileInput = ref<HTMLInputElement | null>(null);
+const imageInput = ref<HTMLInputElement | null>(null);
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.slice(result.indexOf(',') + 1)); // strip "data:...;base64," prefix
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function onFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    for (const file of Array.from(input.files || [])) {
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+            errorMessage.value = `"${file.name}" is too large (max 10 MB).`;
+            continue;
+        }
+        try {
+            attachments.value.push({
+                name: file.name,
+                mediaType: file.type || 'application/octet-stream',
+                data: await fileToBase64(file),
+                isImage: file.type.startsWith('image/'),
+                size: file.size,
+            });
+        } catch {
+            errorMessage.value = `Failed to read "${file.name}".`;
+        }
+    }
+    input.value = ''; // allow re-selecting the same file
+}
+
+function removeAttachment(index: number) {
+    attachments.value.splice(index, 1);
+}
+
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// ── Session usage ────────────────────────────────────────────────
+// Keyed by the resolved session id (in a module-level store) so it survives the page
+// remount that happens when a new session navigates to its saved URL.
+
+const usageStore = useSessionUsage();
+const usageKey = computed(() => activeSessionId.value || (isNewSession ? null : session_id));
+const sessionUsage = computed(() => usageStore.get(usageKey.value));
+
 // ── Load existing messages ──────────────────────────────────────
 
 async function loadSessionHistory() {
@@ -102,7 +189,10 @@ async function loadSessionHistory() {
 
         if (result.success) {
             const history = result.data as GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses['200']['data'];
-            messages.value = history.map((entry, i) => mapHistoryEntry(entry, i));
+            const toolResults = collectToolResults(history as any[]);
+            messages.value = (history as any[])
+                .map((entry, i) => mapHistoryEntry(entry, i, toolResults))
+                .filter((m): m is ChatMessage => m !== null);
         }
     } catch (err: any) {
         console.error('Failed to load session history:', err);
@@ -112,21 +202,82 @@ async function loadSessionHistory() {
     }
 }
 
-function mapHistoryEntry(entry: any, index: number): ChatMessage {
+function extractToolResultText(content: any): string {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+        return content.map((p: any) => (typeof p === 'string' ? p : p?.text || '')).join('');
+    }
+    return '';
+}
+
+// Tool results arrive as separate `user` entries (content blocks of type tool_result).
+// Index them by tool_use_id so they can be attached to the originating tool call.
+function collectToolResults(history: any[]): Record<string, { content: string; isError: boolean }> {
+    const map: Record<string, { content: string; isError: boolean }> = {};
+    for (const entry of history) {
+        if (entry.type !== 'user' || !Array.isArray(entry.message?.content)) continue;
+        for (const part of entry.message.content) {
+            if (part.type === 'tool_result' && part.tool_use_id) {
+                map[part.tool_use_id] = {
+                    content: extractToolResultText(part.content),
+                    isError: !!part.is_error,
+                };
+            }
+        }
+    }
+    return map;
+}
+
+// Session transcripts store slash-command invocations and various injected events as
+// raw pseudo-XML "user" messages. Turn commands into a clean "/cmd args" chip and hide
+// the injected noise (command stdout, task notifications, system reminders, caveats).
+function formatUserContent(raw: string): { content: string; isCommand: boolean } | null {
+    const text = raw.trim();
+    if (!text) return null;
+
+    const nameMatch = text.match(/<command-name>\s*\/?\s*([^<\s]+)\s*<\/command-name>/);
+    if (nameMatch) {
+        const argsMatch = text.match(/<command-args>([\s\S]*?)<\/command-args>/);
+        const args = (argsMatch?.[1] || '').trim();
+        return { content: `/${nameMatch[1]}${args ? ' ' + args : ''}`, isCommand: true };
+    }
+
+    const NOISE = ['task-notification', 'local-command-stdout', 'local-command-caveat', 'system-reminder'];
+    if (text.startsWith('[SYSTEM NOTIFICATION') || NOISE.some(t => text.startsWith(`<${t}>`) || text.startsWith(`<${t} `))) {
+        return null;
+    }
+
+    // Strip any embedded system-reminder blocks / stray wrapper tags from real messages.
+    const cleaned = text
+        .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+        .replace(/<\/?(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>/g, '')
+        .trim();
+    if (!cleaned) return null;
+    return { content: cleaned, isCommand: false };
+}
+
+function mapHistoryEntry(
+    entry: any,
+    index: number,
+    toolResults: Record<string, { content: string; isError: boolean }>
+): ChatMessage | null {
     if (entry.type === 'user') {
-        const msg = entry.message;
-        const content = typeof msg?.content === 'string'
-            ? msg.content
-            : Array.isArray(msg?.content)
-                ? msg.content.map((c: any) => c.text || '').join('')
+        const raw = entry.message?.content;
+        const text = typeof raw === 'string'
+            ? raw
+            : Array.isArray(raw)
+                ? raw.filter((p: any) => p.type === 'text').map((p: any) => p.text || '').join('')
                 : '';
-        return { role: 'user', content, id: entry.uuid || index };
+        // Tool-result echoes and injected noise resolve to null and are dropped.
+        const formatted = formatUserContent(text);
+        if (!formatted) return null;
+        return { role: 'user', content: formatted.content, id: entry.uuid || index, isCommand: formatted.isCommand };
     }
 
     if (entry.type === 'assistant') {
         const msg = entry.message;
         let content = '';
-        const toolCalls: ChatMessage['toolCalls'] = [];
+        const toolCalls: ToolCall[] = [];
         let thinking = '';
 
         if (msg?.content && Array.isArray(msg.content)) {
@@ -136,14 +287,20 @@ function mapHistoryEntry(entry: any, index: number): ChatMessage {
                 } else if (part.type === 'thinking') {
                     thinking += part.thinking;
                 } else if (part.type === 'tool_use') {
+                    const res = toolResults[part.id];
                     toolCalls.push({
                         name: part.name,
                         input: part.input,
                         tool_use_id: part.id,
+                        result: res?.content || undefined,
+                        isError: res?.isError || undefined,
                     });
                 }
             }
         }
+
+        // Drop assistant entries that carry no visible content at all.
+        if (!content.trim() && !thinking.trim() && toolCalls.length === 0) return null;
 
         return {
             role: 'assistant',
@@ -154,11 +311,7 @@ function mapHistoryEntry(entry: any, index: number): ChatMessage {
         };
     }
 
-    if (entry.type === 'system') {
-        return { role: 'tool', content: JSON.stringify(entry.message || ''), id: entry.uuid || index };
-    }
-
-    return { role: 'tool', content: 'Unknown message type', id: entry.uuid || index };
+    return null;
 }
 
 // ── Connect WebSocket on mount ──────────────────────────────────
@@ -168,7 +321,6 @@ onMounted(async () => {
 
     try {
         await ws.connect();
-        connected.value = true;
 
         // Fetch slash commands
         ws.fetchSlashCommands().catch(() => {});
@@ -176,7 +328,14 @@ onMounted(async () => {
         // Don't auto-resume — wait for user to type something
     } catch (err: any) {
         errorMessage.value = err.message || 'Failed to connect to Claude Code server';
-        connected.value = false;
+    }
+});
+
+// Surface socket-level errors (e.g. a mid-session drop) into the error banner.
+watch(ws.error, (e) => {
+    if (e) {
+        errorMessage.value = e;
+        processing.value = false;
     }
 });
 
@@ -239,6 +398,9 @@ ws.onEvent(async (event) => {
             break;
 
         case 'done':
+            // Accumulate session usage (shown in the config panel).
+            usageStore.add(usageKey.value, typeof event.totalCostUsd === 'number' ? event.totalCostUsd : 0);
+
             // Mark last assistant message as done streaming
             const lastDone = messages.value[messages.value.length - 1];
             if (lastDone?.isStreaming) {
@@ -288,38 +450,41 @@ ws.onEvent(async (event) => {
 // ── Actions ─────────────────────────────────────────────────────
 
 function sendPrompt() {
-    if (!inputText.value.trim() || processing.value) return;
+    const hasText = !!inputText.value.trim();
+    const atts = attachments.value.map(a => ({ name: a.name, mediaType: a.mediaType, data: a.data }));
+    if ((!hasText && atts.length === 0) || processing.value) return;
 
     const text = inputText.value;
     inputText.value = '';
     processing.value = true;
     errorMessage.value = null;
 
-    messages.value.push({ role: 'user', content: text, id: Date.now() });
+    // Echo the user's message (with an attachment summary) into the transcript.
+    const attachNote = atts.length
+        ? `${hasText ? '\n\n' : ''}📎 ${atts.length} attachment${atts.length > 1 ? 's' : ''}: ${atts.map(a => a.name).join(', ')}`
+        : '';
+    messages.value.push({ role: 'user', content: text + attachNote, id: Date.now() });
+    attachments.value = [];
+
+    const model = claudeConfig.value.model;
+    const effort = claudeConfig.value.effort;
 
     if (isNewSession && !activeSessionId.value) {
         // Start a new session
-        ws.startSession(text, {
-            projectPath: absolute_path,
-            model: claudeConfig.value.model,
-            effort: claudeConfig.value.effort,
-        });
+        ws.startSession(text, { projectPath: absolute_path, model, effort, attachments: atts });
     } else if (activeSessionId.value) {
-        // Send message to existing session
-        ws.sendMessage(text);
+        // Send message to the existing session (model/effort applied per-turn)
+        ws.sendMessage(text, { model, effort, attachments: atts });
     } else {
         // Resume then send
-        ws.resumeSession(session_id, text, {
-            projectPath: absolute_path,
-            model: claudeConfig.value.model,
-            effort: claudeConfig.value.effort,
-        });
+        ws.resumeSession(session_id, text, { projectPath: absolute_path, model, effort, attachments: atts });
     }
 }
 
 // ── Slash command menu ──────────────────────────────────────────
 
 const slashMenu = reactive({ show: false, filter: '', selectedIndex: 0 });
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const filteredCommands = computed(() => {
     const cmds = ws.slashCommands.value;
@@ -333,7 +498,7 @@ const filteredCommands = computed(() => {
 
 watch(inputText, (val) => {
     if (val?.startsWith('/')) {
-        const afterSlash = val.slice(1).split(' ')[0];
+        const afterSlash = val.slice(1).split(' ')[0] ?? '';
         slashMenu.filter = afterSlash;
         slashMenu.show = true;
         slashMenu.selectedIndex = 0;
@@ -345,6 +510,8 @@ watch(inputText, (val) => {
 function selectCommand(cmd: any) {
     inputText.value = `/${cmd.name} `;
     slashMenu.show = false;
+    // Keep focus in the textarea after picking a command (a click otherwise loses it).
+    nextTick(() => textareaRef.value?.focus());
 }
 
 function onInputKeydown(e: KeyboardEvent) {
@@ -396,8 +563,13 @@ function newSession() {
 const chatContainer = ref<HTMLElement | null>(null);
 
 watch(messages, () => {
+    const el = chatContainer.value;
+    if (!el) return;
+    // Only stick to the bottom if the user is already near it — don't yank them down
+    // while they're scrolled up reading earlier output.
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     nextTick(() => {
-        if (chatContainer.value) {
+        if (chatContainer.value && nearBottom) {
             chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
         }
     });
@@ -451,6 +623,7 @@ watch(messages, () => {
                         variant="ghost"
                         size="sm"
                         title="New Chat"
+                        aria-label="New chat"
                         @click="newSession"
                     />
                     <UButton
@@ -460,6 +633,7 @@ watch(messages, () => {
                         variant="soft"
                         size="sm"
                         title="Stop"
+                        aria-label="Stop Claude"
                         @click="ws.cancelSession(); processing = false"
                     />
                     <UButton
@@ -468,6 +642,7 @@ watch(messages, () => {
                         variant="ghost"
                         size="sm"
                         title="Configuration"
+                        aria-label="Configuration"
                         @click="configOpen = !configOpen"
                     />
                 </div>
@@ -490,6 +665,7 @@ watch(messages, () => {
                             color="neutral"
                             variant="ghost"
                             size="xs"
+                            aria-label="Dismiss error"
                             @click="errorMessage = null"
                         />
                     </div>
@@ -534,12 +710,21 @@ watch(messages, () => {
                         <template v-for="msg in messages" :key="msg.id">
                             <!-- User message -->
                             <div v-if="msg.role === 'user'" class="flex gap-3 w-full justify-end">
-                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] sm:max-w-[70%] bg-primary-500/20 border border-primary-500/30">
+                                <!-- Slash command invocation -->
+                                <div
+                                    v-if="msg.isCommand"
+                                    class="flex items-center gap-2 rounded-lg px-3 py-1.5 mt-0.5 bg-slate-800/60 border border-slate-700/50 font-mono text-xs text-primary-300 max-w-[85%] sm:max-w-[70%] break-all"
+                                >
+                                    <UIcon name="i-lucide-terminal" class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                    {{ msg.content }}
+                                </div>
+                                <!-- Regular user message -->
+                                <div v-else class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] sm:max-w-[70%] bg-primary-500/20 border border-primary-500/30">
                                     <div class="text-sm text-slate-200 whitespace-pre-wrap break-words">
                                         {{ msg.content }}
                                     </div>
                                 </div>
-                                <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center flex-shrink-0 mt-1">
+                                <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0 mt-1">
                                     <UIcon name="i-lucide-user" class="text-white w-4 h-4" />
                                 </div>
                             </div>
@@ -586,13 +771,12 @@ watch(messages, () => {
                                     <!-- Tool calls -->
                                     <div v-if="msg.toolCalls?.length" class="mt-2 space-y-1">
                                         <ClaudeFileEdit
-                                            v-for="edit in msg.toolCalls.filter(tc =>
-                                                tc.name === 'Edit' || tc.name === 'Write' || tc.name === 'Read' || tc.name === 'Bash'
-                                            )"
+                                            v-for="edit in msg.toolCalls"
                                             :key="edit.tool_use_id"
-                                            :file="edit.input?.file_path || edit.input?.command || 'unknown'"
                                             :tool-name="edit.name"
                                             :input="edit.input"
+                                            :result="edit.result"
+                                            :is-error="edit.isError"
                                         />
                                     </div>
                                 </div>
@@ -651,10 +835,17 @@ watch(messages, () => {
                             class="fixed z-100 px-4"
                             :style="{ left: '50%', bottom: '120px', transform: 'translateX(-50%)' }"
                         >
-                            <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                            <div
+                                id="slash-command-menu"
+                                role="listbox"
+                                aria-label="Slash commands"
+                                class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+                            >
                                 <button
                                     v-for="(cmd, i) in filteredCommands"
                                     :key="cmd.name"
+                                    role="option"
+                                    :aria-selected="i === slashMenu.selectedIndex"
                                     :class="[
                                         'w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors border-b border-slate-700/50 last:border-b-0',
                                         i === slashMenu.selectedIndex ? 'bg-primary-500/20 text-primary-300' : 'text-slate-300 hover:bg-slate-700/60'
@@ -672,6 +863,31 @@ watch(messages, () => {
 
                     <div class="border-t border-slate-800 bg-slate-900/80 p-3 sm:p-4">
                         <div class="max-w-4xl mx-auto">
+                            <!-- Hidden file pickers -->
+                            <input ref="fileInput" type="file" multiple class="hidden" @change="onFilesSelected" >
+                            <input ref="imageInput" type="file" accept="image/*" multiple class="hidden" @change="onFilesSelected" >
+
+                            <!-- Pending attachments -->
+                            <div v-if="attachments.length" class="flex flex-wrap gap-2 mb-2">
+                                <div
+                                    v-for="(att, i) in attachments"
+                                    :key="i"
+                                    class="flex items-center gap-2 bg-slate-800/80 border border-slate-700/50 rounded-lg pl-2 pr-1 py-1 text-xs text-slate-300 max-w-[240px]"
+                                >
+                                    <UIcon :name="att.isImage ? 'i-lucide-image' : 'i-lucide-file'" class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                    <span class="truncate">{{ att.name }}</span>
+                                    <span class="text-slate-600 flex-shrink-0">{{ formatBytes(att.size) }}</span>
+                                    <UButton
+                                        icon="i-lucide-x"
+                                        color="neutral"
+                                        variant="ghost"
+                                        size="xs"
+                                        :aria-label="`Remove ${att.name}`"
+                                        @click="removeAttachment(i)"
+                                    />
+                                </div>
+                            </div>
+
                             <div class="flex items-end gap-2 bg-slate-800/60 border border-slate-700/50 rounded-2xl px-3 py-2 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/30 transition-all">
                                 <!-- Left: attachment buttons -->
                                 <div class="flex items-center gap-1 pb-1.5">
@@ -681,7 +897,9 @@ watch(messages, () => {
                                         variant="ghost"
                                         size="sm"
                                         title="Attach file"
+                                        aria-label="Attach file"
                                         :disabled="!connected || processing"
+                                        @click="fileInput?.click()"
                                     />
                                     <UButton
                                         icon="i-lucide-image"
@@ -689,16 +907,23 @@ watch(messages, () => {
                                         variant="ghost"
                                         size="sm"
                                         title="Attach image"
+                                        aria-label="Attach image"
                                         :disabled="!connected || processing"
+                                        @click="imageInput?.click()"
                                     />
                                 </div>
 
                                 <!-- Textarea -->
                                 <textarea
+                                    ref="textareaRef"
                                     v-model="inputText"
                                     :disabled="!connected || processing"
                                     placeholder="Ask Claude anything..."
                                     rows="1"
+                                    role="combobox"
+                                    aria-label="Message Claude"
+                                    aria-controls="slash-command-menu"
+                                    :aria-expanded="slashMenu.show"
                                     class="flex-1 bg-transparent px-2 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none outline-none min-h-10 disabled:opacity-50 disabled:cursor-not-allowed"
                                     @keydown="onInputKeydown"
                                 />
@@ -712,14 +937,16 @@ watch(messages, () => {
                                         variant="soft"
                                         size="md"
                                         title="Stop"
+                                        aria-label="Stop Claude"
                                         @click="ws.cancelSession(); processing = false"
                                     />
                                     <UButton
                                         v-else
                                         icon="i-lucide-arrow-up"
-                                        :disabled="!connected || !inputText.trim()"
+                                        :disabled="!connected || (!inputText.trim() && attachments.length === 0)"
                                         color="primary"
                                         size="md"
+                                        aria-label="Send message"
                                         @click="sendPrompt"
                                     />
                                 </div>
@@ -738,6 +965,7 @@ watch(messages, () => {
     <ClaudeConfigPanel
         v-model="configOpen"
         :config="claudeConfig"
+        :usage="sessionUsage"
         @update:config="Object.assign(claudeConfig, $event)"
     />
 </template>

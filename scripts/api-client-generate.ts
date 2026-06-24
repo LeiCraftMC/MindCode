@@ -20,7 +20,7 @@ try {
     await Bun.$`bunx openapi-ts`;
     console.log("[api-client-generate] openapi-ts succeeded, patching generated client…");
 
-    //await Bun.$`bun scripts/patch-api-client.ts`;
+    await Bun.$`bun scripts/patch-api-client.ts`;
     console.log("[api-client-generate] Patch applied successfully.");
 } finally {
     apiServer.stop();

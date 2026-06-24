@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import * as z from "zod";
 import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
-import { useRuntimeAppConfigs } from "~/composables/useRuntimeAppConfigs";
 import { useUserInfoStore } from "~/composables/stores/useUserStore";
-
-const isSignupEnabled = useRuntimeAppConfigs().isSignupEnabled
 
 definePageMeta({
     layout: "auth",
@@ -18,13 +15,15 @@ useSeoMeta({
 const route = useRoute();
 let redirectUrl = route.query.url?.toString() || "/";
 
-// Ensure redirectUrl is a safe path within the application
-if (!redirectUrl.startsWith("/")) {
+// Only allow safe in-app destinations: a single leading "/" that is not a
+// protocol-relative ("//host") or backslash ("/\host") open-redirect.
+if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//") || redirectUrl.startsWith("/\\")) {
     redirectUrl = "/";
 }
 
 
 const toast = useToast();
+const loading = ref(false);
 
 const fields: AuthFormField[] = [
     {
@@ -64,34 +63,38 @@ const schema = z.object({
 type Schema = z.output<typeof schema>;
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-    const result = await useAPI((api) => {
-        return api.postAuthLogin({ body: payload.data });
-    });
+    // Guard against double-submit creating duplicate sessions / toasts.
+    if (loading.value) return;
+    loading.value = true;
 
-    if (result.success) {
-        updateAPIClient(result.data.token);
-
-        const sessionToken = useCookie("mindcode_session_token", {
-            path: "/",
-            secure: true,
-            sameSite: "lax",
-            httpOnly: false,
-            maxAge: payload.data.remember ? 60 * 60 * 24 * 30 : undefined, // 30 days
+    try {
+        const result = await useAPI((api) => {
+            return api.postAuthLogin({ body: payload.data });
         });
 
-        sessionToken.value = result.data.token;
+        if (result.success) {
+            updateAPIClient(result.data.token);
 
-        await useUserInfoStore().refresh();
+            const sessionToken = useCookie("mindcode_session_token", {
+                path: "/",
+                secure: true,
+                sameSite: "lax",
+                httpOnly: false,
+                maxAge: payload.data.remember ? 60 * 60 * 24 * 30 : undefined, // 30 days
+            });
 
-        toast.add({
-            title: "Login Successful",
-            description: "You have been logged in successfully.",
-        });
+            sessionToken.value = result.data.token;
 
-        await navigateTo(redirectUrl.toString());
-        return;
-    } else {
-        if ((result.code as number) === 401) {
+            await useUserInfoStore().refresh();
+
+            toast.add({
+                title: "Login Successful",
+                description: "You have been logged in successfully.",
+            });
+
+            await navigateTo(redirectUrl.toString());
+            return;
+        } else if ((result.code as number) === 401) {
             toast.add({
                 title: "Invalid Username or Password",
                 description: "Please check your credentials and try again.",
@@ -106,6 +109,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                 color: "error",
             });
         }
+    } finally {
+        loading.value = false;
     }
 }
 </script>
@@ -120,6 +125,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         @submit="onSubmit"
         :submit="{
             label: 'Login',
+            loading,
+            disabled: loading,
         }"
     >
         <template #footer>
@@ -127,18 +134,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                 Forgot your password?
                 <NuxtLink
                     to="/auth/forgot-password"
-                    class="text-sky-400 hover:underline"
+                    class="text-primary hover:underline"
                 >
                     Reset here
-                </NuxtLink>
-            </div>
-            <div v-if="isSignupEnabled" class="text-center text-sm mt-2">
-                Don't have an account?
-                <NuxtLink
-                    to="/auth/signup"
-                    class="text-sky-400 hover:underline"
-                >
-                    Sign up
                 </NuxtLink>
             </div>
         </template>

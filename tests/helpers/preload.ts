@@ -12,8 +12,8 @@ function setTestEnv(rootDir: string) {
 
         MINDCODE_APP_URL: "http://localhost:13338",
 
-        MINDCODE_API_HOST: "::",
-        MINDCODE_API_PORT: "13338",
+        MINDCODE_HOST: "::",
+        MINDCODE_PORT: "13338",
         MINDCODE_API_DISABLE_DOCS: true,
 
         MINDCODE_DB_PATH: path.join(rootDir, "db.sqlite"),
@@ -21,7 +21,7 @@ function setTestEnv(rootDir: string) {
 
         MINDCODE_CONFIG_BASE_DIR: rootDir,
 
-    } as const satisfies ParsedConfig;
+    } as const satisfies Partial<ParsedConfig>;
 
     for (const [key, value] of Object.entries(envVars)) {
         process.env[key] = String(value);
