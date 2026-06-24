@@ -9,6 +9,26 @@ import { ClaudeModel } from './model';
 import { DOCS_TAGS } from '../../docs';
 import { ConfigHandler } from '../../../../../../utils/config';
 
+const STATIC_SLASH_COMMANDS: ClaudeModel.SlashCommand[] = [
+    { name: 'help', description: 'Show available commands and tips' },
+    { name: 'clear', description: 'Clear the conversation history' },
+    { name: 'model', description: 'Switch the active model', argumentHint: '<model>' },
+    { name: 'compact', description: 'Compact the conversation to reduce context usage' },
+    { name: 'cost', description: 'Show the cost of the current session' },
+    { name: 'usage', description: 'Show token usage and costs' },
+    { name: 'rename', description: 'Rename the current session', argumentHint: '<title>' },
+    { name: 'tag', description: 'Tag the current session', argumentHint: '<tag>' },
+    { name: 'fork', description: 'Fork the current session at a message' },
+    { name: 'export', description: 'Export the current session' },
+    { name: 'plan', description: 'Create a plan for a complex task' },
+    { name: 'review', description: 'Review recent changes' },
+    { name: 'explain', description: 'Explain the selected code', argumentHint: '<code>' },
+    { name: 'bug', description: 'Find and fix bugs' },
+    { name: 'init', description: 'Initialize a project with context' },
+    { name: 'publish', description: 'Publish or deploy the project' },
+    { name: 'docs', description: 'Generate or update documentation' },
+];
+
 export const router = new Hono().basePath('/claude');
 
 // All routes require authentication
@@ -106,6 +126,24 @@ router.delete('/sessions/:id',
         await sdk.deleteSession(id, { dir: userDir });
 
         return APIResponse.successNoData(c, 'Session deleted');
+    }
+);
+
+// GET /claude/commands — list available slash commands
+router.get('/commands',
+    APIRouteSpec.authenticated({
+        summary: 'List Claude Code slash commands',
+        description: 'Retrieve the list of available slash commands for Claude Code.',
+        tags: [DOCS_TAGS.CLAUDE],
+        responses: APIResponseSpec.describeBasic(
+            APIResponseSpec.success('Commands retrieved', z.object({
+                commands: z.array(ClaudeModel.SlashCommand),
+            })),
+            APIResponseSpec.unauthorized(),
+        ),
+    }),
+    async (c) => {
+        return APIResponse.success(c, 'Commands retrieved', { commands: STATIC_SLASH_COMMANDS });
     }
 );
 

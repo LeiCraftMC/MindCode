@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useUserInfoStore } from '~/composables/stores/useUserStore';
+
 definePageMeta({
     layout: 'dashboard',
 });

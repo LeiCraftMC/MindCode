@@ -6,6 +6,13 @@ export interface ClaudeWSEvent {
     [key: string]: any;
 }
 
+export interface SlashCommand {
+    name: string;
+    description: string;
+    argumentHint?: string;
+    aliases?: string[];
+}
+
 export function useClaudeWebSocket() {
     const ws = ref<WebSocket | null>(null);
     const connected = ref(false);
@@ -13,6 +20,7 @@ export function useClaudeWebSocket() {
     const authenticated = ref(false);
     const activeSessionId = ref<string | null>(null);
     const error = ref<string | null>(null);
+    const slashCommands = ref<SlashCommand[]>([]);
 
     const onEvent = createEventHook<ClaudeWSEvent>();
 
@@ -56,6 +64,8 @@ export function useClaudeWebSocket() {
                             activeSessionId.value = null;
                         } else if (msg.type === 'cancelled') {
                             activeSessionId.value = null;
+                        } else if (msg.type === 'commands_changed' && msg.commands) {
+                            slashCommands.value = msg.commands;
                         }
 
                         onEvent.trigger(msg);
@@ -89,6 +99,19 @@ export function useClaudeWebSocket() {
                 reject(err);
             }
         });
+    }
+
+    async function fetchSlashCommands(): Promise<SlashCommand[]> {
+        try {
+            const result = await useAPI((api: any) => api.getClaudeCommands());
+            if (result.success) {
+                slashCommands.value = result.data.commands;
+                return result.data.commands;
+            }
+        } catch (err) {
+            console.error('Failed to fetch slash commands:', err);
+        }
+        return slashCommands.value;
     }
 
     function send(msg: Record<string, any>) {
@@ -129,7 +152,9 @@ export function useClaudeWebSocket() {
         authenticated: readonly(authenticated),
         activeSessionId: readonly(activeSessionId),
         error: readonly(error),
+        slashCommands: readonly(slashCommands),
         connect,
+        fetchSlashCommands,
         send,
         startSession,
         sendMessage,

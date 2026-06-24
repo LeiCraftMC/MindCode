@@ -263,6 +263,25 @@ export class ClaudeSessionRunner {
                 }
             }
             peer.send(JSON.stringify({ type: 'delta', content }));
+
+            // Forward tool_use content blocks from the raw BetaMessage
+            if (msg?.content && Array.isArray(msg.content)) {
+                for (const part of msg.content) {
+                    if (part.type === 'tool_use' && (part.name === 'Edit' || part.name === 'Write' || part.name === 'Read' || part.name === 'Bash')) {
+                        peer.send(JSON.stringify({
+                            type: 'tool_use',
+                            name: part.name,
+                            input: part.input,
+                            tool_use_id: part.id,
+                        }));
+                    }
+                }
+            }
+        } else if (message.type === 'tool_use_summary') {
+            peer.send(JSON.stringify({
+                type: 'tool_use_summary',
+                summary: message.summary,
+            }));
         } else if (message.type === 'result') {
             peer.send(JSON.stringify({
                 type: 'done',
@@ -282,6 +301,11 @@ export class ClaudeSessionRunner {
             peer.send(JSON.stringify({
                 type: 'user',
                 content: message.message,
+            }));
+        } else if (message.type === 'commands_changed') {
+            peer.send(JSON.stringify({
+                type: 'commands_changed',
+                commands: message.commands,
             }));
         } else {
             // Forward unknown types as raw

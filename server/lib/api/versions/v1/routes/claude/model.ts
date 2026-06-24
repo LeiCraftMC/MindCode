@@ -52,4 +52,12 @@ export namespace ClaudeModel {
             active_sessions: z.number(),
         });
     }
+
+    export const SlashCommand = z.object({
+        name: z.string(),
+        description: z.string(),
+        argumentHint: z.string().optional(),
+        aliases: z.array(z.string()).optional(),
+    });
+    export type SlashCommand = z.infer<typeof SlashCommand>;
 }
