@@ -14,6 +14,8 @@ if (!userinfoStore.isValid(userinfo)) {
     throw new Error("User not authenticated but should be to access UserMenu");
 }
 
+const isAdmin = computed(() => userinfo.value?.role === "admin");
+
 const user = computed(() => {
     if (!userinfo.value) {
         return {
@@ -83,6 +85,12 @@ const items = computed<DropdownMenuItem[][]>(() => [
             icon: "i-lucide-settings",
             to: "/settings",
         },
+        ...(isAdmin.value ? [{
+            label: "Admin Panel",
+            icon: "i-lucide-shield",
+            to: "/admin",
+        }] : []),
+        
     ],
     [
         {

@@ -10,12 +10,14 @@ const user = await userInfoStore.use();
 
 const isAdmin = computed(() => user.value?.role === "admin");
 
+const route = useRoute();
+
 const sidebarItems = computed(() => {
-    const mainItems: NavigationMenuItem[] = [
+    const basicItems: NavigationMenuItem[] = [
         {
             label: "Overview",
             icon: "i-lucide-layout-dashboard",
-            to: "/",
+            to: "/projects",
         },
         {
             label: "Claude Code",
@@ -28,7 +30,7 @@ const sidebarItems = computed(() => {
         {
             label: "Admin",
             icon: "i-lucide-shield",
-            type: "label",
+            type: "label"
         },
         {
             label: "Users",
@@ -54,16 +56,27 @@ const sidebarItems = computed(() => {
             label: "Security",
             icon: "i-lucide-shield",
             to: "/settings/security",
-        },
+        }
     ];
 
     return {
-        dev: mainItems,
+        basic: basicItems,
         settings: settings,
         admin: adminItems,
     }
 });
 
+const displaySidebars = computed(() => {
+
+    const settingsSidebar = route.path.startsWith('/settings');
+    const adminSidebar = route.path.startsWith('/admin');
+
+    return {
+        basicSidebar: !settingsSidebar && !adminSidebar,
+        settingsSidebar: settingsSidebar,
+        adminSidebar: adminSidebar,
+    }
+});
 
 </script>
 
@@ -95,20 +108,35 @@ const sidebarItems = computed(() => {
             </template>
 
             <template #default="{ collapsed }">
+
                 <UNavigationMenu
+                    v-if="displaySidebars.basicSidebar"
                     :collapsed="collapsed"
-                    :items="sidebarItems.dev"
+                    :items="sidebarItems.basic"
                     orientation="vertical"
                 />
 
                 <UNavigationMenu
-                    v-if="isAdmin"
+                    v-if="displaySidebars.adminSidebar || displaySidebars.settingsSidebar"
+                    :collapsed="collapsed"
+                    :items="[{
+                        label: 'Go back to Projects',
+                        icon: 'i-lucide-arrow-left',
+                        to: '/projects',
+                    }]"
+                    orientation="vertical"
+                    class="mb-2"
+                />
+
+                <UNavigationMenu
+                    v-if="isAdmin && displaySidebars.adminSidebar"
                     :collapsed="collapsed"
                     :items="sidebarItems.admin"
                     orientation="vertical"
                 />
 
                 <UNavigationMenu
+                    v-if="displaySidebars.settingsSidebar"
                     :collapsed="collapsed"
                     :items="sidebarItems.settings"
                     orientation="vertical"
