@@ -12,6 +12,7 @@ export interface ClientToServerMessage {
     model?: string;
     effort?: string;
     content?: string;
+    resume?: string;
 }
 
 
@@ -122,9 +123,8 @@ export class ClaudeSessionRunner {
         const effort = msg.effort || this.config?.MINDCODE_CLAUDE_DEFAULT_EFFORT || undefined;
         const prompt = msg.prompt || '';
 
-        // The SDK auto-creates and persists the session as a JSONL file
-        // in ~/.claude/projects/<dir>/<sessionId>.jsonl
-        const sessionUuid = crypto.randomUUID();
+        // Resume existing session or create new one
+        const sessionUuid = msg.resume || crypto.randomUUID();
         session.sessionId = sessionUuid;
 
         peer.send(JSON.stringify({ type: 'init', sessionId: sessionUuid }));
@@ -140,6 +140,12 @@ export class ClaudeSessionRunner {
                 effortLevel: effort,
                 sessionId: sessionUuid,
             };
+
+            // If resuming, use resume option instead of sessionId
+            if (msg.resume) {
+                options.resume = msg.resume;
+                delete options.sessionId;
+            }
 
             // Remove undefined values
             for (const key of Object.keys(options)) {

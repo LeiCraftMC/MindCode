@@ -1,10 +1,798 @@
 <script setup lang="ts">
+import { useClaudeWebSocket } from '~/composables/useClaudeWebSocket';
+import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
+import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
+import { marked } from 'marked';
+import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
+
+// ── Helpers ─────────────────────────────────────────────────────
+
+function renderMarkdown(text: string): string {
+    if (!text) return '';
+    try {
+        const result = marked(text, { breaks: true, gfm: true });
+        return typeof result === 'string' ? result : '';
+    } catch {
+        return text;
+    }
+}
 
 definePageMeta({
     layout: 'dashboard',
 });
 
+useSeoMeta({
+    title: 'Session | MindCode',
+    description: 'Claude Code session'
+});
+
+// ── Route params ────────────────────────────────────────────────
+
+const route = useRoute();
+const absolute_path = decodeURIComponent(route.params.absolute_path as string);
+const session_id = route.params.session_id as string;
+const isNewSession = session_id === 'new';
+
+// ── WebSocket ───────────────────────────────────────────────────
+
+const ws = useClaudeWebSocket();
+
+// ── Chat state ──────────────────────────────────────────────────
+
+interface ChatMessage {
+    role: 'user' | 'assistant' | 'tool';
+    content: string;
+    id: string | number;
+    toolCalls?: Array<{ name: string; input: Record<string, any>; tool_use_id: string }>;
+    thinking?: string;
+    isStreaming?: boolean;
+}
+
+const messages = ref<ChatMessage[]>([]);
+const rawOutput = ref<string[]>([]);
+const inputText = ref('');
+const processing = ref(false);
+const connected = ref(false);
+const errorMessage = ref<string | null>(null);
+const activeSessionId = ref<string | null>(null);
+const historyLoaded = ref(false);
+const loadingHistory = ref(true);
+
+// ── Layout state ────────────────────────────────────────────────
+
+const configOpen = ref(false);
+const reviewOpen = ref(false);
+
+// ── Config state ─────────────────────────────────────────────────
+
+const claudeConfig = ref<ClaudeConfig>({
+    model: 'sonnet',
+    effort: 'max',
+    thinking: true,
+    autoFlag: true,
+    editAuto: true,
+});
+
+// ── Review panel state ───────────────────────────────────────────
+
+const fileChanges = ref<Array<{
+    file: string;
+    toolName: string;
+    added?: number;
+    removed?: number;
+}>>([]);
+
+// ── Load existing messages ──────────────────────────────────────
+
+async function loadSessionHistory() {
+    if (isNewSession) {
+        loadingHistory.value = false;
+        historyLoaded.value = true;
+        return;
+    }
+
+    loadingHistory.value = true;
+    try {
+        const result = await useAPI((api) => api.getClaudeProjectsByAbsolutePathSessionsBySessionIdMessages({
+            path: {
+                absolute_path: encodeURIComponent(absolute_path),
+                session_id,
+            }
+        }));
+
+        if (result.success) {
+            const history = result.data as GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses['200']['data'];
+            messages.value = history.map((entry, i) => mapHistoryEntry(entry, i));
+        }
+    } catch (err: any) {
+        console.error('Failed to load session history:', err);
+    } finally {
+        loadingHistory.value = false;
+        historyLoaded.value = true;
+    }
+}
+
+function mapHistoryEntry(entry: any, index: number): ChatMessage {
+    if (entry.type === 'user') {
+        const msg = entry.message;
+        const content = typeof msg?.content === 'string'
+            ? msg.content
+            : Array.isArray(msg?.content)
+                ? msg.content.map((c: any) => c.text || '').join('')
+                : '';
+        return { role: 'user', content, id: entry.uuid || index };
+    }
+
+    if (entry.type === 'assistant') {
+        const msg = entry.message;
+        let content = '';
+        const toolCalls: ChatMessage['toolCalls'] = [];
+        let thinking = '';
+
+        if (msg?.content && Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+                if (part.type === 'text') {
+                    content += part.text;
+                } else if (part.type === 'thinking') {
+                    thinking += part.thinking;
+                } else if (part.type === 'tool_use') {
+                    toolCalls.push({
+                        name: part.name,
+                        input: part.input,
+                        tool_use_id: part.id,
+                    });
+                }
+            }
+        }
+
+        return {
+            role: 'assistant',
+            content,
+            id: entry.uuid || index,
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+            thinking: thinking || undefined,
+        };
+    }
+
+    if (entry.type === 'system') {
+        return { role: 'tool', content: JSON.stringify(entry.message || ''), id: entry.uuid || index };
+    }
+
+    return { role: 'tool', content: 'Unknown message type', id: entry.uuid || index };
+}
+
+// ── Connect WebSocket on mount ──────────────────────────────────
+
+onMounted(async () => {
+    await loadSessionHistory();
+
+    try {
+        await ws.connect();
+        connected.value = true;
+
+        // Fetch slash commands
+        ws.fetchSlashCommands().catch(() => {});
+
+        // Don't auto-resume — wait for user to type something
+    } catch (err: any) {
+        errorMessage.value = err.message || 'Failed to connect to Claude Code server';
+        connected.value = false;
+    }
+});
+
+// ── WebSocket event handler ─────────────────────────────────────
+
+ws.onEvent(async (event) => {
+    switch (event.type) {
+        case 'delta':
+            const last = messages.value[messages.value.length - 1];
+            if (last?.role === 'assistant' && last.isStreaming) {
+                last.content += event.content;
+            } else {
+                messages.value.push({
+                    role: 'assistant',
+                    content: event.content,
+                    id: Date.now(),
+                    isStreaming: true,
+                });
+            }
+            break;
+
+        case 'tool_use':
+            const lastMsg = messages.value[messages.value.length - 1];
+            if (lastMsg?.role === 'assistant') {
+                if (!lastMsg.toolCalls) lastMsg.toolCalls = [];
+                lastMsg.toolCalls.push({
+                    name: event.name,
+                    input: event.input,
+                    tool_use_id: event.tool_use_id,
+                });
+            }
+
+            // Track file changes for review panel
+            if (event.name === 'Edit' || event.name === 'Write') {
+                const file = event.input?.file_path || event.input?.path || 'unknown';
+                fileChanges.value.push({
+                    file,
+                    toolName: event.name,
+                    added: event.name === 'Edit'
+                        ? (event.input?.new_string?.split('\n').length || 0)
+                        : (event.input?.content?.split('\n').length || 0),
+                    removed: event.name === 'Edit'
+                        ? (event.input?.old_string?.split('\n').length || 0)
+                        : 0,
+                });
+            }
+            break;
+
+        case 'tool_use_summary':
+            messages.value.push({
+                role: 'tool',
+                content: event.summary || 'Tool operation completed',
+                id: Date.now(),
+            });
+            break;
+
+        case 'error':
+            errorMessage.value = event.message;
+            processing.value = false;
+            break;
+
+        case 'done':
+            // Mark last assistant message as done streaming
+            const lastDone = messages.value[messages.value.length - 1];
+            if (lastDone?.isStreaming) {
+                lastDone.isStreaming = false;
+            }
+            processing.value = false;
+
+            // If this was a new session, navigate to the real session URL
+            // so the sidebar picks it up on re-render
+            if (isNewSession && activeSessionId.value) {
+                const newId = activeSessionId.value;
+                activeSessionId.value = null; // prevent re-trigger
+                navigateTo(
+                    `/projects/${encodeURIComponent(absolute_path)}/sessions/${newId}`,
+                    { replace: true }
+                );
+            }
+            break;
+
+        case 'cancelled':
+            const lastCancelled = messages.value[messages.value.length - 1];
+            if (lastCancelled?.isStreaming) {
+                lastCancelled.isStreaming = false;
+            }
+            processing.value = false;
+            break;
+
+        case 'init':
+            activeSessionId.value = event.sessionId;
+
+            // Refresh the project store so the sidebar picks up the new session
+            if (isNewSession) {
+                useSelectedProjectStore().set(absolute_path);
+            }
+            break;
+
+        case 'commands_changed':
+            // Slash commands are handled by the composable
+            break;
+    }
+
+    if (event.type !== 'pong' && event.type !== 'auth_ok') {
+        rawOutput.value.push(JSON.stringify(event, null, 2));
+    }
+});
+
+// ── Actions ─────────────────────────────────────────────────────
+
+function sendPrompt() {
+    if (!inputText.value.trim() || processing.value) return;
+
+    const text = inputText.value;
+    inputText.value = '';
+    processing.value = true;
+    errorMessage.value = null;
+
+    messages.value.push({ role: 'user', content: text, id: Date.now() });
+
+    if (isNewSession && !activeSessionId.value) {
+        // Start a new session
+        ws.startSession(text, {
+            projectPath: absolute_path,
+            model: claudeConfig.value.model,
+            effort: claudeConfig.value.effort,
+        });
+    } else if (activeSessionId.value) {
+        // Send message to existing session
+        ws.sendMessage(text);
+    } else {
+        // Resume then send
+        ws.resumeSession(session_id, text, {
+            projectPath: absolute_path,
+            model: claudeConfig.value.model,
+            effort: claudeConfig.value.effort,
+        });
+    }
+}
+
+// ── Slash command menu ──────────────────────────────────────────
+
+const slashMenu = reactive({ show: false, filter: '', selectedIndex: 0 });
+
+const filteredCommands = computed(() => {
+    const cmds = ws.slashCommands.value;
+    if (!cmds?.length) return [];
+    const filter = slashMenu.filter.toLowerCase();
+    return cmds.filter((cmd: any) =>
+        cmd.name.toLowerCase().includes(filter) ||
+        cmd.description.toLowerCase().includes(filter)
+    );
+});
+
+watch(inputText, (val) => {
+    if (val?.startsWith('/')) {
+        const afterSlash = val.slice(1).split(' ')[0];
+        slashMenu.filter = afterSlash;
+        slashMenu.show = true;
+        slashMenu.selectedIndex = 0;
+    } else {
+        slashMenu.show = false;
+    }
+});
+
+function selectCommand(cmd: any) {
+    inputText.value = `/${cmd.name} `;
+    slashMenu.show = false;
+}
+
+function onInputKeydown(e: KeyboardEvent) {
+    if (slashMenu.show && filteredCommands.value.length > 0) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            slashMenu.selectedIndex = Math.min(slashMenu.selectedIndex + 1, filteredCommands.value.length - 1);
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            slashMenu.selectedIndex = Math.max(slashMenu.selectedIndex - 1, 0);
+            return;
+        }
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            selectCommand(filteredCommands.value[slashMenu.selectedIndex]);
+            return;
+        }
+        if (e.key === 'Escape') {
+            slashMenu.show = false;
+            return;
+        }
+    }
+
+    // Submit on Enter (without Shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendPrompt();
+    }
+}
+
+function newSession() {
+    if (processing.value) {
+        ws.cancelSession();
+    }
+    messages.value = [];
+    rawOutput.value = [];
+    fileChanges.value = [];
+    processing.value = false;
+    errorMessage.value = null;
+    activeSessionId.value = null;
+
+    navigateTo(`/projects/${encodeURIComponent(absolute_path)}/sessions/new`, { replace: true });
+}
+
+// ── Auto-scroll ─────────────────────────────────────────────────
+
+const chatContainer = ref<HTMLElement | null>(null);
+
+watch(messages, () => {
+    nextTick(() => {
+        if (chatContainer.value) {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+        }
+    });
+}, { deep: true });
 
 </script>
 
-<template></template>
+<template>
+    <UDashboardPanel id="session-chat">
+        <template #header>
+            <div class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+                <!-- Left: Session title -->
+                <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span class="text-sm sm:text-base font-medium text-slate-200 truncate max-w-[150px] sm:max-w-[300px] lg:max-w-[400px]">
+                        {{ isNewSession ? 'New Session' : `Session ${session_id.substring(0, 8)}` }}
+                    </span>
+                </div>
+
+                <!-- Center -->
+                <div class="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base text-slate-300 font-medium">
+                    <UIcon name="i-lucide-sparkles" class="w-4 h-4 text-amber-400" />
+                    <span class="hidden sm:inline">Claude Code</span>
+                </div>
+
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-1">
+                    <UBadge
+                        v-if="connected"
+                        size="sm"
+                        color="success"
+                        variant="soft"
+                        class="hidden sm:flex"
+                    >
+                        <UIcon name="i-lucide-wifi" class="mr-1" />
+                        Connected
+                    </UBadge>
+                    <UBadge
+                        v-else
+                        size="sm"
+                        color="error"
+                        variant="soft"
+                        class="hidden sm:flex"
+                    >
+                        <UIcon name="i-lucide-wifi-off" class="mr-1" />
+                        Disconnected
+                    </UBadge>
+
+                    <UButton
+                        icon="i-lucide-plus"
+                        color="neutral"
+                        variant="ghost"
+                        size="sm"
+                        title="New Chat"
+                        @click="newSession"
+                    />
+                    <UButton
+                        v-if="processing"
+                        icon="i-lucide-square"
+                        color="error"
+                        variant="soft"
+                        size="sm"
+                        title="Stop"
+                        @click="ws.cancelSession(); processing = false"
+                    />
+                    <UButton
+                        icon="i-lucide-settings-2"
+                        color="neutral"
+                        variant="ghost"
+                        size="sm"
+                        title="Configuration"
+                        @click="configOpen = !configOpen"
+                    />
+                </div>
+            </div>
+        </template>
+
+        <template #body>
+            <div class="flex flex-1 min-h-0 h-full">
+                <!-- Main chat area -->
+                <div class="flex-1 flex flex-col min-w-0">
+                    <!-- Error banner -->
+                    <div
+                        v-if="errorMessage"
+                        class="mx-3 sm:mx-4 mt-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2"
+                    >
+                        <UIcon name="i-lucide-alert-circle" class="w-4 h-4 shrink-0" />
+                        <span class="flex-1">{{ errorMessage }}</span>
+                        <UButton
+                            icon="i-lucide-x"
+                            color="neutral"
+                            variant="ghost"
+                            size="xs"
+                            @click="errorMessage = null"
+                        />
+                    </div>
+
+                    <!-- Loading history -->
+                    <div
+                        v-if="loadingHistory"
+                        class="flex items-center justify-center py-20 flex-1"
+                    >
+                        <UIcon name="i-lucide-loader-2" class="animate-spin text-3xl text-slate-400" />
+                    </div>
+
+                    <!-- Chat messages -->
+                    <div
+                        v-else
+                        ref="chatContainer"
+                        class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4"
+                    >
+                        <!-- Welcome state for new session -->
+                        <div
+                            v-if="messages.length === 0 && !processing"
+                            class="flex flex-col items-center justify-center text-center text-slate-400 mt-10 sm:mt-20"
+                        >
+                            <UIcon name="i-lucide-bot" class="text-4xl sm:text-5xl mb-4 text-slate-600" />
+                            <h3 class="text-lg font-medium text-slate-300 mb-1">Start a conversation</h3>
+
+                            <div class="space-y-1 mt-3 text-sm">
+                                <p class="text-slate-500">
+                                    {{ absolute_path }}
+                                </p>
+                            </div>
+
+                            <p class="text-sm max-w-md px-4 mt-4 text-slate-400">
+                                Ask Claude to help with your code — write files, run commands, refactor, debug, and more.
+                            </p>
+                            <p class="text-xs text-slate-600 mt-2">
+                                Type <kbd class="px-1 py-0.5 bg-slate-800 rounded text-[10px] font-mono">/</kbd> for commands
+                            </p>
+                        </div>
+
+                        <!-- Message list -->
+                        <template v-for="msg in messages" :key="msg.id">
+                            <!-- User message -->
+                            <div v-if="msg.role === 'user'" class="flex gap-3 w-full justify-end">
+                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] sm:max-w-[70%] bg-primary-500/20 border border-primary-500/30">
+                                    <div class="text-sm text-slate-200 whitespace-pre-wrap break-words">
+                                        {{ msg.content }}
+                                    </div>
+                                </div>
+                                <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center flex-shrink-0 mt-1">
+                                    <UIcon name="i-lucide-user" class="text-white w-4 h-4" />
+                                </div>
+                            </div>
+
+                            <!-- Assistant message -->
+                            <div v-else-if="msg.role === 'assistant'" class="flex gap-3 w-full justify-start">
+                                <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0 mt-1">
+                                    <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
+                                </div>
+                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[90%] sm:max-w-[85%] bg-slate-800/60 border border-slate-700/50">
+                                    <!-- Thinking block (collapsible) -->
+                                    <div
+                                        v-if="msg.thinking"
+                                        class="mb-2 border border-slate-700/50 rounded-lg overflow-hidden"
+                                    >
+                                        <details class="group">
+                                            <summary class="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-300 cursor-pointer bg-slate-900/40 hover:bg-slate-800/40 transition-colors">
+                                                <UIcon name="i-lucide-brain" class="w-3.5 h-3.5" />
+                                                <span>Thinking</span>
+                                                <UIcon name="i-lucide-chevron-down" class="w-3 h-3 ml-auto group-open:rotate-180 transition-transform" />
+                                            </summary>
+                                            <div class="px-3 py-2 text-xs text-slate-400 italic border-t border-slate-800 whitespace-pre-wrap">
+                                                {{ msg.thinking }}
+                                            </div>
+                                        </details>
+                                    </div>
+
+                                    <!-- Content (markdown rendered) -->
+                                    <div
+                                        v-if="msg.content"
+                                        class="prose prose-invert prose-sm max-w-none break-words"
+                                        v-html="renderMarkdown(msg.content)"
+                                    />
+
+                                    <!-- Streaming indicator -->
+                                    <div
+                                        v-if="msg.isStreaming && !msg.content"
+                                        class="flex items-center gap-2 text-slate-400 text-sm"
+                                    >
+                                        <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
+                                        <span>Claude is thinking...</span>
+                                    </div>
+
+                                    <!-- Tool calls -->
+                                    <div v-if="msg.toolCalls?.length" class="mt-2 space-y-1">
+                                        <ClaudeFileEdit
+                                            v-for="edit in msg.toolCalls.filter(tc =>
+                                                tc.name === 'Edit' || tc.name === 'Write' || tc.name === 'Read' || tc.name === 'Bash'
+                                            )"
+                                            :key="edit.tool_use_id"
+                                            :file="edit.input?.file_path || edit.input?.command || 'unknown'"
+                                            :tool-name="edit.name"
+                                            :input="edit.input"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tool message -->
+                            <div v-else class="flex gap-3 w-full justify-start">
+                                <div class="w-8 h-8 rounded-full bg-amber-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+                                    <UIcon name="i-lucide-wrench" class="text-amber-400 w-4 h-4" />
+                                </div>
+                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <UIcon name="i-lucide-wrench" class="w-4 h-4 flex-shrink-0" />
+                                        <span>{{ msg.content }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Processing indicator (no messages yet) -->
+                        <div v-if="processing && messages.length === 0" class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+                                <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
+                            </div>
+                            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3">
+                                <div class="flex items-center gap-2 text-slate-400 text-sm">
+                                    <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
+                                    <span>Claude is thinking...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typing indicator (processing with existing messages) -->
+                        <div v-if="processing && messages.length > 0" class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+                                <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
+                            </div>
+                            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3">
+                                <div class="flex items-center gap-2 text-slate-400 text-sm">
+                                    <div class="flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
+                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
+                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
+                                    </div>
+                                    <span>Claude is working...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat input -->
+                    <!-- Slash command menu -->
+                    <Teleport to="body">
+                        <div
+                            v-if="slashMenu.show && filteredCommands.length > 0"
+                            class="fixed z-100 px-4"
+                            :style="{ left: '50%', bottom: '120px', transform: 'translateX(-50%)' }"
+                        >
+                            <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                <button
+                                    v-for="(cmd, i) in filteredCommands"
+                                    :key="cmd.name"
+                                    :class="[
+                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors border-b border-slate-700/50 last:border-b-0',
+                                        i === slashMenu.selectedIndex ? 'bg-primary-500/20 text-primary-300' : 'text-slate-300 hover:bg-slate-700/60'
+                                    ]"
+                                    @click="selectCommand(cmd)"
+                                    @mouseenter="slashMenu.selectedIndex = i"
+                                >
+                                    <span class="font-mono text-primary-400">/{{ cmd.name }}</span>
+                                    <span class="text-xs text-slate-500 truncate flex-1">{{ cmd.description }}</span>
+                                    <span v-if="cmd.argumentHint" class="text-[10px] text-slate-600 font-mono">{{ cmd.argumentHint }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </Teleport>
+
+                    <div class="border-t border-slate-800 bg-slate-900/80 p-3 sm:p-4">
+                        <div class="max-w-4xl mx-auto">
+                            <div class="flex items-end gap-2 bg-slate-800/60 border border-slate-700/50 rounded-2xl px-3 py-2 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/30 transition-all">
+                                <!-- Left: attachment buttons -->
+                                <div class="flex items-center gap-1 pb-1.5">
+                                    <UButton
+                                        icon="i-lucide-paperclip"
+                                        color="neutral"
+                                        variant="ghost"
+                                        size="sm"
+                                        title="Attach file"
+                                        :disabled="!connected || processing"
+                                    />
+                                    <UButton
+                                        icon="i-lucide-image"
+                                        color="neutral"
+                                        variant="ghost"
+                                        size="sm"
+                                        title="Attach image"
+                                        :disabled="!connected || processing"
+                                    />
+                                </div>
+
+                                <!-- Textarea -->
+                                <textarea
+                                    v-model="inputText"
+                                    :disabled="!connected || processing"
+                                    placeholder="Ask Claude anything..."
+                                    rows="1"
+                                    class="flex-1 bg-transparent px-2 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none outline-none min-h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    @keydown="onInputKeydown"
+                                />
+
+                                <!-- Right: submit / stop -->
+                                <div class="flex items-center gap-1 pb-1.5">
+                                    <UButton
+                                        v-if="processing"
+                                        icon="i-lucide-square"
+                                        color="error"
+                                        variant="soft"
+                                        size="md"
+                                        title="Stop"
+                                        @click="ws.cancelSession(); processing = false"
+                                    />
+                                    <UButton
+                                        v-else
+                                        icon="i-lucide-arrow-up"
+                                        :disabled="!connected || !inputText.trim()"
+                                        color="primary"
+                                        size="md"
+                                        @click="sendPrompt"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Review panel -->
+                <ClaudeReviewPanel v-model="reviewOpen" :changes="fileChanges" />
+            </div>
+        </template>
+    </UDashboardPanel>
+
+    <!-- Config panel -->
+    <ClaudeConfigPanel
+        v-model="configOpen"
+        :config="claudeConfig"
+        @update:config="Object.assign(claudeConfig, $event)"
+    />
+</template>
+
+<style scoped>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+}
+.animate-bounce {
+    animation: bounce 1.4s ease-in-out infinite;
+}
+
+.prose :deep(pre) {
+    background: rgb(15 23 42);
+    border: 1px solid rgb(51 65 85);
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    position: relative;
+}
+
+.prose :deep(code) {
+    font-size: 0.8em;
+    background: rgb(30 41 59);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+.prose :deep(pre code) {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+.prose :deep(p) {
+    margin: 0.25rem 0;
+}
+
+.prose :deep(ul), .prose :deep(ol) {
+    margin: 0.25rem 0;
+    padding-left: 1.25rem;
+}
+
+.prose :deep(a) {
+    color: rgb(96 165 250);
+    text-decoration: underline;
+}
+</style>

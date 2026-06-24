@@ -126,6 +126,10 @@ export function useClaudeWebSocket() {
         send({ type: 'start', prompt, ...options });
     }
 
+    function resumeSession(sessionId: string, prompt: string, options?: { projectPath?: string; model?: string; effort?: string }) {
+        send({ type: 'start', prompt, resume: sessionId, ...options });
+    }
+
     function sendMessage(content: string) {
         send({ type: 'message', content });
     }
@@ -157,6 +161,7 @@ export function useClaudeWebSocket() {
         fetchSlashCommands,
         send,
         startSession,
+        resumeSession,
         sendMessage,
         cancelSession,
         disconnect,
