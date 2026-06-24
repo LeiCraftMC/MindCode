@@ -4,27 +4,66 @@ import UserMenu from "~/components/dashboard/UserMenu.vue";
 import MindCodeLogo from "~/components/img/MindCodeLogo.vue";
 import MindCodeIcon from "~/components/img/MindCodeIcon.vue";
 import { useUserInfoStore } from "~/composables/stores/useUserStore";
+import { useSelectedProjectStore } from "~/composables/stores/useSelectedProjectStore";
+
+const route = useRoute();
 
 const userInfoStore = useUserInfoStore();
 const user = await userInfoStore.use();
 
 const isAdmin = computed(() => user.value?.role === "admin");
 
-const route = useRoute();
+const currentProjectStore = await useSelectedProjectStore();
+const currentProject = await currentProjectStore.use();
+const currentProjectSessions = computed(() => currentProject.value?.sessions || []);
 
 const sidebarItems = computed(() => {
+
     const basicItems: NavigationMenuItem[] = [
         {
-            label: "Projects",
-            icon: "i-lucide-layout-dashboard",
-            to: "/projects",
+            label: "No Project Selected",
+            icon: "i-lucide-folder",
+            type: "label"
         },
         {
-            label: "Claude Code",
-            icon: "i-lucide-bot",
-            to: "/code",
-        },
+            label: 'No Session to show',
+            icon: 'i-lucide-message-square',
+            exact: false,
+        }
     ];
+
+    const projectItems: NavigationMenuItem[] = [
+        {
+            label: currentProject.value?.name || "No Project Name",
+            icon: "i-lucide-folder",
+            type: "label"
+        }
+    ];
+    
+    const projectSessionsItems: NavigationMenuItem[] = [];
+
+    if (currentProjectSessions.value.length > 0) {
+        projectSessionsItems.push({
+            label: "Sessions",
+            icon: "i-lucide-mail",
+            type: "label"
+        });
+
+        for (const session of currentProjectSessions.value) {
+            projectSessionsItems.push({
+                label: session.title,
+                icon: "i-lucide-mail",
+                to: `/projects/${encodeURIComponent(currentProject?.value?.absolute_path || '')}/sessions/${session.session_id}`,
+                exact: false,
+            });
+        }
+    } else {
+        projectSessionsItems.push({
+            label: 'No Session to show',
+            icon: 'i-lucide-message-square',
+            exact: false,
+        });
+    }
 
     const adminItems: NavigationMenuItem[] = [
         {
@@ -61,6 +100,10 @@ const sidebarItems = computed(() => {
 
     return {
         basic: basicItems,
+
+        project: projectItems,
+        projectSessions: projectSessionsItems,
+
         settings: settings,
         admin: adminItems,
     }
@@ -70,9 +113,11 @@ const displaySidebars = computed(() => {
 
     const settingsSidebar = route.path.startsWith('/settings');
     const adminSidebar = route.path.startsWith('/admin');
+    const projectSidebar = !!route.params.absolute_path
 
     return {
-        basicSidebar: !settingsSidebar && !adminSidebar,
+        basicSidebar: !settingsSidebar && !adminSidebar && !projectSidebar,
+        projectSidebar: projectSidebar,
         settingsSidebar: settingsSidebar,
         adminSidebar: adminSidebar,
     }
@@ -116,17 +161,47 @@ const displaySidebars = computed(() => {
                     orientation="vertical"
                 />
 
-                <UNavigationMenu
-                    v-if="displaySidebars.adminSidebar || displaySidebars.settingsSidebar"
-                    :collapsed="collapsed"
-                    :items="[{
-                        label: 'Go back to Projects',
-                        icon: 'i-lucide-arrow-left',
-                        to: '/projects',
-                    }]"
-                    orientation="vertical"
-                    class="mb-2"
-                />
+               <div
+                    v-if="displaySidebars.projectSidebar"
+                    class="flex flex-col main-bg-color"
+                >
+                    <UNavigationMenu
+                        :collapsed="collapsed"
+                        :items="sidebarItems.project"
+                        orientation="vertical"
+                    />
+
+                    <!-- Compose Button - Prominent -->
+                    <div v-if="currentProject" class="px-2 mb-2">
+                            <UButton
+                                v-if="!collapsed"
+                                icon="i-lucide-pen-square"
+                                color="primary"
+                                variant="solid"
+                                size="md"
+                                class="w-full justify-start"
+                                :to="`/projects/${encodeURIComponent(currentProject.absolute_path)}/sessions/new`"
+                            >
+                                New Session
+                            </UButton>
+                            <UTooltip v-else text="New Session">
+                                <UButton
+                                    icon="i-lucide-pen-square"
+                                    color="primary"
+                                    variant="solid"
+                                    size="md"
+                                    :to="`/projects/${encodeURIComponent(currentProject.absolute_path)}/sessions/new`"
+                                />
+                            </UTooltip>
+                        </div>
+
+                    <UNavigationMenu
+                        :collapsed="collapsed"
+                        :items="sidebarItems.projectSessions"
+                        orientation="vertical"
+                        class="mt-0"
+                    />
+                </div>
 
                 <UNavigationMenu
                     v-if="isAdmin && displaySidebars.adminSidebar"
@@ -140,6 +215,18 @@ const displaySidebars = computed(() => {
                     :collapsed="collapsed"
                     :items="sidebarItems.settings"
                     orientation="vertical"
+                />
+
+                <UNavigationMenu
+                    v-if="displaySidebars.adminSidebar || displaySidebars.settingsSidebar || displaySidebars.projectSidebar"
+                    :collapsed="collapsed"
+                    :items="[{
+                        label: 'Go back to Project Selection',
+                        icon: 'i-lucide-arrow-left',
+                        to: '/projects',
+                    }]"
+                    orientation="vertical"
+                    class="mt-auto"
                 />
 
             </template>

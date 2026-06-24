@@ -57,8 +57,18 @@ export namespace ProjectModel.GetProjectByPath {
     export type Params = z.infer<typeof Params>;
 
 
+    export const Query = z.object({
+        with_sessions: z.coerce.boolean().optional().default(false).meta({ title: "Whether to include sessions in the response" })
+    });
 
-    export const Response = z.union([ProjectModel.Project.Exists, ProjectModel.Project.NotExists]);
+
+    export const Response = z.union([
+        ProjectModel.Project.Exists,
+        ProjectModel.Project.NotExists,
+
+        ProjectModel.Project.ExistingWithSessions,
+        ProjectModel.Project.NotExistsWithSessions
+    ]);
     export type Response = z.infer<typeof Response>;
 }
 

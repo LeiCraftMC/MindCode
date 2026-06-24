@@ -333,6 +333,10 @@ export const zGetClaudeProjectsByAbsolutePathPath = z.object({
     absolute_path: z.string()
 });
 
+export const zGetClaudeProjectsByAbsolutePathQuery = z.object({
+    with_sessions: z.boolean().optional().default(false)
+});
+
 /**
  * Project retrieved successfully
  */
@@ -352,6 +356,32 @@ export const zGetClaudeProjectsByAbsolutePathResponse = z.object({
             name: z.string(),
             absolute_path: z.string(),
             last_used: z.unknown()
+        }),
+        z.object({
+            exists: z.literal(true),
+            name: z.string(),
+            absolute_path: z.string(),
+            last_used: z.int().gte(-9007199254740991).lte(9007199254740991),
+            sessions: z.array(z.object({
+                session_id: z.string(),
+                title: z.string(),
+                last_modified: z.int().gte(-9007199254740991).lte(9007199254740991),
+                git_branch: z.string().optional(),
+                created_at: z.int().gte(-9007199254740991).lte(9007199254740991).optional()
+            }))
+        }),
+        z.object({
+            exists: z.literal(false),
+            name: z.string(),
+            absolute_path: z.string(),
+            last_used: z.unknown(),
+            sessions: z.array(z.object({
+                session_id: z.string(),
+                title: z.string(),
+                last_modified: z.int().gte(-9007199254740991).lte(9007199254740991),
+                git_branch: z.string().optional(),
+                created_at: z.int().gte(-9007199254740991).lte(9007199254740991).optional()
+            }))
         })
     ])
 });

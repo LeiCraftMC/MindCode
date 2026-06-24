@@ -183,19 +183,29 @@ router.get('/:absolute_path',
         )
     }),
 
+    validator('query', ProjectModel.GetProjectByPath.Query),
+
     async (c) => {
 
         // @ts-ignore
         const project = c.get('project') as ProjectModel.Project.WithSessions;
 
-        const result: ProjectModel.Project.WithoutSessions = {
-            exists: project.exists,
-            name: project.name,
-            absolute_path: project.absolute_path,
-            last_used: project.last_used
-        };
+        if (!c.req.valid('query').with_sessions) {
+            
+            const result: ProjectModel.Project.WithoutSessions = {
+                exists: project.exists,
+                name: project.name,
+                absolute_path: project.absolute_path,
+                last_used: project.last_used
+            };
 
-        return APIResponse.success(c, 'Project retrieved successfully', result);
+            return APIResponse.success(c, 'Project retrieved successfully', result);
+        }
+
+        // order by newest session first
+        project.sessions.sort((a, b) => b.last_modified - a.last_modified);
+
+        return APIResponse.success(c, 'Project retrieved successfully', project as ProjectModel.GetProjectByPath.Response);
 
     }
 );

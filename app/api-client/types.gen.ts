@@ -740,7 +740,12 @@ export type GetClaudeProjectsByAbsolutePathData = {
          */
         absolute_path: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Whether to include sessions in the response
+         */
+        with_sessions?: boolean;
+    };
     url: '/claude/projects/{absolute_path}';
 };
 
@@ -762,6 +767,30 @@ export type GetClaudeProjectsByAbsolutePathResponses = {
             name: string;
             absolute_path: string;
             last_used: unknown;
+        } | {
+            exists: true;
+            name: string;
+            absolute_path: string;
+            last_used: number;
+            sessions: Array<{
+                session_id: string;
+                title: string;
+                last_modified: number;
+                git_branch?: string;
+                created_at?: number;
+            }>;
+        } | {
+            exists: false;
+            name: string;
+            absolute_path: string;
+            last_used: unknown;
+            sessions: Array<{
+                session_id: string;
+                title: string;
+                last_modified: number;
+                git_branch?: string;
+                created_at?: number;
+            }>;
         };
     };
 };

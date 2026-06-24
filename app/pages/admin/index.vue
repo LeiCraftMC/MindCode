@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { useUserInfoStore } from '~/composables/stores/useUserStore';
 
+definePageMeta({
+    layout: 'dashboard',
+});
+
 useSeoMeta({
     title: 'Admin Panel | MindCode',
     description: 'Overview of your admin panel'
