@@ -234,7 +234,7 @@ function formatUserContent(raw: string): { content: string; isCommand: boolean }
         return { content: `/${nameMatch[1]}${args ? ' ' + args : ''}`, isCommand: true };
     }
     const NOISE = ["task-notification", "local-command-stdout", "local-command-caveat", "system-reminder"];
-    if (text.startsWith("[SYSTEM NOTIFICATION") || NOISE.some(t => text.startsWith(``) || text.startsWith(`[${t}]`))) {
+    if (text.startsWith("[SYSTEM NOTIFICATION") || NOISE.some(t => text.startsWith(`[${t}]`))) {
         return null;
     }
     if (/^\[Request interrupted by user[^\]]*\]/.test(text)) return null;
@@ -314,6 +314,7 @@ watch(ws.error, (e) => {
 });
 
 ws.onEvent(async (event) => {
+    console.log('[ws.onEvent]', event.type, event);
     switch (event.type) {
         case 'delta': {
             const last = messages.value[messages.value.length - 1];
@@ -477,10 +478,12 @@ function sendPrompt() {
     processing.value = true;
     errorMessage.value = null;
     const attachNote = atts.length
-        ? `${hasText ? '\n\n' : ''}📎 ${atts.length} attachment${atts.length > 1 ? 's' : ''}: ${atts.map(a => a.name).join(', ')}`
+        ? `${hasText ? '\n\n' : ''}[${atts.length} attachment${atts.length > 1 ? 's' : ''}: ${atts.map(a => a.name).join(', ')}]`
         : '';
-    messages.value.push({ role: 'user', content: text + attachNote, id: Date.now() });
+    const userMessage: ChatMessage = { role: 'user', content: text + attachNote, id: Date.now() };
+    messages.value = [...messages.value, userMessage];
     attachments.value = [];
+    console.log('[sendPrompt] pushed user message, total messages:', messages.value.length);
     const model = claudeConfig.value.model;
     const effort = claudeConfig.value.effort;
     if (isNewSession && !activeSessionId.value) {
