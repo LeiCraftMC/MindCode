@@ -18,6 +18,7 @@ const description = computed(() => {
         case 'Grep': return 'Grep';
         case 'Glob': return 'Glob';
         case 'Task': return 'Task';
+        case 'Agent': return 'Agent';
         case 'TodoWrite': return 'Update todos';
         default:
             if (props.toolName.startsWith('mcp__')) return 'MCP';
@@ -31,6 +32,7 @@ const detail = computed(() => {
     if (props.toolName === 'Bash') return i.description || i.command || '';
     if (props.toolName === 'Grep' || props.toolName === 'Glob') return i.pattern || i.query || '';
     if (props.toolName === 'Task') return i.description || i.prompt || '';
+    if (props.toolName === 'Agent') return i.description || i.prompt || '';
     if (props.toolName === 'TodoWrite') return '';
     return i.file_path || i.path || i.command || i.pattern || i.query || i.subject || i.url || i.prompt || i.description || '';
 });
@@ -141,6 +143,10 @@ const prettyInput = computed(() => {
                             <div class="text-[10px] uppercase tracking-wide text-green-400 font-semibold mb-1">Added</div>
                             <pre class="text-xs font-mono text-green-200 bg-green-950/40 border border-green-900/30 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
                         </div>
+                    </template>
+
+                    <template v-else-if="toolName === 'Agent'">
+                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72">{{ input.prompt }}</pre>
                     </template>
 
                     <!-- Generic input -->
