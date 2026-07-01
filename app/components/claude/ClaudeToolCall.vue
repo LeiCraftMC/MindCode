@@ -20,6 +20,7 @@ const description = computed(() => {
         case 'Task': return 'Task';
         case 'Agent': return 'Agent';
         case 'TodoWrite': return 'Update todos';
+        case 'AskUserQuestion': return 'Question';
         default:
             if (props.toolName.startsWith('mcp__')) return 'MCP';
             return props.toolName;

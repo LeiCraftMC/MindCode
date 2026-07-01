@@ -1,9 +1,14 @@
 import { createEventHook } from '@vueuse/core';
+import type {
+    PermissionResponseMessage,
+    QuestionResponseMessage,
+    DialogResponseMessage,
+    ElicitationResponseMessage,
+    ServerToClientMessage,
+    ClientToServerMessage,
+} from '#shared/types/claude-ws';
 
-export interface ClaudeWSEvent {
-    type: string;
-    [key: string]: any;
-}
+export type ClaudeWSEvent = ServerToClientMessage;
 
 export interface SlashCommand {
     name: string;
@@ -101,7 +106,7 @@ export function useClaudeWebSocket() {
 
             socket.onmessage = (event) => {
                 try {
-                    const msg = JSON.parse(event.data);
+                    const msg = JSON.parse(event.data) as ClaudeWSEvent;
 
                     if (msg.type === 'auth_ok') {
                         authenticated.value = true;
@@ -153,8 +158,8 @@ export function useClaudeWebSocket() {
         return slashCommands.value;
     }
 
-    /** Sends a message over the socket. Returns false (and sets `error`) if not connected. */
-    function send(msg: Record<string, any>): boolean {
+    /** Sends a typed message over the socket. Returns false (and sets `error`) if not connected. */
+    function send(msg: ClientToServerMessage): boolean {
         if (ws.value?.readyState === WebSocket.OPEN) {
             ws.value.send(JSON.stringify(msg));
             return true;
@@ -177,6 +182,22 @@ export function useClaudeWebSocket() {
 
     function cancelSession(): boolean {
         return send({ type: 'cancel' });
+    }
+
+    function sendPermissionResponse(requestId: string, behavior: 'allow' | 'deny', extras?: Omit<PermissionResponseMessage, 'type' | 'requestId' | 'behavior'>): boolean {
+        return send({ type: 'permission_response', requestId, behavior, ...extras });
+    }
+
+    function sendQuestionResponse(requestId: string, answers: Record<string, string>, extras?: Omit<QuestionResponseMessage, 'type' | 'requestId' | 'answers'>): boolean {
+        return send({ type: 'question_response', requestId, answers, ...extras });
+    }
+
+    function sendDialogResponse(requestId: string, behavior: 'completed' | 'cancelled', result?: any): boolean {
+        return send({ type: 'dialog_response', requestId, behavior, result });
+    }
+
+    function sendElicitationResponse(requestId: string, action: 'accept' | 'decline' | 'cancel', content?: Record<string, any>): boolean {
+        return send({ type: 'elicitation_response', requestId, action, content });
     }
 
     function disconnect() {
@@ -205,6 +226,10 @@ export function useClaudeWebSocket() {
         resumeSession,
         sendMessage,
         cancelSession,
+        sendPermissionResponse,
+        sendQuestionResponse,
+        sendDialogResponse,
+        sendElicitationResponse,
         disconnect,
         onEvent: onEvent.on,
     };

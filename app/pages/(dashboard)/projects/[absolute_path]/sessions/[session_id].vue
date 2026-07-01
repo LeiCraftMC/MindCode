@@ -4,13 +4,20 @@ import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
 import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
 import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
 import ClaudeToolCall from '~/components/claude/ClaudeToolCall.vue';
+import ClaudePermissionCard from '~/components/claude/ClaudePermissionCard.vue';
+import ClaudeQuestionCard from '~/components/claude/ClaudeQuestionCard.vue';
+import ClaudeDialogCard from '~/components/claude/ClaudeDialogCard.vue';
+import ClaudeElicitationCard from '~/components/claude/ClaudeElicitationCard.vue';
+import type {
+    PermissionRequestMessage,
+    QuestionRequestMessage,
+    DialogRequestMessage,
+    ElicitationRequestMessage,
+} from '#shared/types/claude-ws';
 import type { ComponentPublicInstance } from 'vue';
 
 definePageMeta({
     layout: 'dashboard',
-    // Re-key on the full path so Nuxt mounts a fresh instance when switching sessions
-    // (or going from /new to the saved id). Without this the component is reused and
-    // keeps the previous session's state/history.
     key: (route) => route.fullPath,
 });
 
@@ -19,18 +26,12 @@ useSeoMeta({
     description: 'Claude Code session'
 });
 
-// ── Route params ────────────────────────────────────────────────
-
 const route = useRoute();
 const absolute_path = safeDecodeURIComponent(route.params.absolute_path as string);
 const session_id = route.params.session_id as string;
 const isNewSession = session_id === 'new';
 
-// ── WebSocket ───────────────────────────────────────────────────
-
 const ws = useClaudeWebSocket();
-
-// ── Chat state ──────────────────────────────────────────────────
 
 interface ToolCall {
     name: string;
@@ -47,7 +48,6 @@ interface ChatMessage {
     toolCalls?: ToolCall[];
     thinking?: string;
     isStreaming?: boolean;
-    /** True when the user message is a slash-command invocation (rendered as a chip). */
     isCommand?: boolean;
 }
 
@@ -55,15 +55,24 @@ const messages = ref<ChatMessage[]>([]);
 const rawOutput = ref<string[]>([]);
 const inputText = ref('');
 const processing = ref(false);
-// Reactive connection state straight from the socket, so a mid-session drop is reflected
-// in the header/input instead of staying stuck on "Connected".
 const connected = ws.connected;
 const errorMessage = ref<string | null>(null);
 const activeSessionId = ref<string | null>(null);
 const historyLoaded = ref(false);
 const loadingHistory = ref(true);
 
-// Per-message expansion state for long historical messages
+const pendingPermissions = ref<PermissionRequestMessage[]>([]);
+const pendingQuestions = ref<QuestionRequestMessage[]>([]);
+const pendingDialogs = ref<DialogRequestMessage[]>([]);
+const pendingElicitations = ref<ElicitationRequestMessage[]>([]);
+
+const hasPendingInteraction = computed(() =>
+    pendingPermissions.value.length > 0 ||
+    pendingQuestions.value.length > 0 ||
+    pendingDialogs.value.length > 0 ||
+    pendingElicitations.value.length > 0
+);
+
 const MESSAGE_TRUNCATE_LENGTH = 800;
 const expandedMessageIds = ref<Set<string | number>>(new Set());
 
@@ -83,12 +92,8 @@ function toggleMessageExpanded(id: string | number) {
     expandedMessageIds.value = next;
 }
 
-// ── Layout state ────────────────────────────────────────────────
-
 const configOpen = ref(false);
 const reviewOpen = ref(false);
-
-// ── Config state ─────────────────────────────────────────────────
 
 const claudeConfig = ref<ClaudeConfig>({
     model: 'sonnet',
@@ -98,8 +103,6 @@ const claudeConfig = ref<ClaudeConfig>({
     editAuto: true,
 });
 
-// ── Review panel state ───────────────────────────────────────────
-
 const fileChanges = ref<Array<{
     file: string;
     toolName: string;
@@ -107,12 +110,10 @@ const fileChanges = ref<Array<{
     removed?: number;
 }>>([]);
 
-// ── Attachments ──────────────────────────────────────────────────
-
 interface PendingAttachment {
     name: string;
     mediaType: string;
-    data: string; // base64
+    data: string;
     isImage: boolean;
     size: number;
 }
@@ -120,14 +121,14 @@ interface PendingAttachment {
 const attachments = ref<PendingAttachment[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const imageInput = ref<HTMLInputElement | null>(null);
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const result = reader.result as string;
-            resolve(result.slice(result.indexOf(',') + 1)); // strip "data:...;base64," prefix
+            resolve(result.slice(result.indexOf(',') + 1));
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);
@@ -138,7 +139,7 @@ async function onFilesSelected(e: Event) {
     const input = e.target as HTMLInputElement;
     for (const file of Array.from(input.files || [])) {
         if (file.size > MAX_ATTACHMENT_BYTES) {
-            errorMessage.value = `"${file.name}" is too large (max 10 MB).`;
+            errorMessage.value = `\"${file.name}\" is too large (max 10 MB).`;
             continue;
         }
         try {
@@ -150,10 +151,10 @@ async function onFilesSelected(e: Event) {
                 size: file.size,
             });
         } catch {
-            errorMessage.value = `Failed to read "${file.name}".`;
+            errorMessage.value = `Failed to read \"${file.name}\".`;
         }
     }
-    input.value = ''; // allow re-selecting the same file
+    input.value = '';
 }
 
 function removeAttachment(index: number) {
@@ -166,15 +167,9 @@ function formatBytes(bytes: number): string {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-// ── Session usage ────────────────────────────────────────────────
-// Keyed by the resolved session id (in a module-level store) so it survives the page
-// remount that happens when a new session navigates to its saved URL.
-
 const usageStore = useSessionUsage();
 const usageKey = computed(() => activeSessionId.value || (isNewSession ? null : session_id));
 const sessionUsage = computed(() => usageStore.get(usageKey.value));
-
-// ── Load existing messages ──────────────────────────────────────
 
 async function loadSessionHistory() {
     if (isNewSession) {
@@ -182,7 +177,6 @@ async function loadSessionHistory() {
         historyLoaded.value = true;
         return;
     }
-
     loadingHistory.value = true;
     try {
         const result = await useAPI((api) => api.getClaudeProjectsByAbsolutePathSessionsBySessionIdMessages({
@@ -191,7 +185,6 @@ async function loadSessionHistory() {
                 session_id,
             }
         }));
-
         if (result.success) {
             const history = result.data as GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses['200']['data'];
             const toolResults = collectToolResults(history as any[]);
@@ -215,8 +208,6 @@ function extractToolResultText(content: any): string {
     return '';
 }
 
-// Tool results arrive as separate `user` entries (content blocks of type tool_result).
-// Index them by tool_use_id so they can be attached to the originating tool call.
 function collectToolResults(history: any[]): Record<string, { content: string; isError: boolean }> {
     const map: Record<string, { content: string; isError: boolean }> = {};
     for (const entry of history) {
@@ -233,30 +224,20 @@ function collectToolResults(history: any[]): Record<string, { content: string; i
     return map;
 }
 
-// Session transcripts store slash-command invocations and various injected events as
-// raw pseudo-XML "user" messages. Turn commands into a clean "/cmd args" chip and hide
-// the injected noise (command stdout, task notifications, system reminders, caveats).
 function formatUserContent(raw: string): { content: string; isCommand: boolean } | null {
     const text = raw.trim();
     if (!text) return null;
-
-    const nameMatch = text.match(/<command-name>\s*\/?\s*([^<\s]+)\s*<\/command-name>/);
+    const nameMatch = text.match(/<command-name>\s*\/?\s*([^\<\s]+)\s*<\/command-name>/);
     if (nameMatch) {
         const argsMatch = text.match(/<command-args>([\s\S]*?)<\/command-args>/);
         const args = (argsMatch?.[1] || '').trim();
         return { content: `/${nameMatch[1]}${args ? ' ' + args : ''}`, isCommand: true };
     }
-
     const NOISE = ["task-notification", "local-command-stdout", "local-command-caveat", "system-reminder"];
-    if (text.startsWith("[SYSTEM NOTIFICATION") || NOISE.some(t => text.startsWith(`<${t}>`) || text.startsWith(`[${t}]`))) {
+    if (text.startsWith("[SYSTEM NOTIFICATION") || NOISE.some(t => text.startsWith(``) || text.startsWith(`[${t}]`))) {
         return null;
     }
-
-    // The SDK injects this marker into transcripts when a turn ends; don't show it as a user message.
-    if (/^\[Request interrupted by user[^\]]*\]/.test(text)) {
-        return null;
-    }
-
+    if (/^\[Request interrupted by user[^\]]*\]/.test(text)) return null;
     const cleaned = text
         .replace(/<\/?system-reminder[\s\S]*?<\/system-reminder>/gi, "")
         .replace(/<\/?(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>/g, "")
@@ -278,25 +259,20 @@ function mapHistoryEntry(
             : Array.isArray(raw)
                 ? raw.filter((p: any) => p.type === 'text').map((p: any) => p.text || '').join('')
                 : '';
-        // Tool-result echoes and injected noise resolve to null and are dropped.
         const formatted = formatUserContent(text);
         if (!formatted) return null;
         return { role: 'user', content: formatted.content, id: entry.uuid || index, isCommand: formatted.isCommand };
     }
-
     if (entry.type === 'assistant') {
         const msg = entry.message;
         let content = '';
         const toolCalls: ToolCall[] = [];
         let thinking = '';
-
         if (msg?.content && Array.isArray(msg.content)) {
             for (const part of msg.content) {
-                if (part.type === 'text') {
-                    content += part.text;
-                } else if (part.type === 'thinking') {
-                    thinking += part.thinking;
-                } else if (part.type === 'tool_use') {
+                if (part.type === 'text') content += part.text;
+                else if (part.type === 'thinking') thinking += part.thinking;
+                else if (part.type === 'tool_use') {
                     const res = toolResults[part.id];
                     toolCalls.push({
                         name: part.name,
@@ -308,10 +284,7 @@ function mapHistoryEntry(
                 }
             }
         }
-
-        // Drop assistant entries that carry no visible content at all.
         if (!content.trim() && !thinking.trim() && toolCalls.length === 0) return null;
-
         return {
             role: 'assistant',
             content,
@@ -320,28 +293,19 @@ function mapHistoryEntry(
             thinking: thinking || undefined,
         };
     }
-
     return null;
 }
 
-// ── Connect WebSocket on mount ──────────────────────────────────
-
 onMounted(async () => {
     await loadSessionHistory();
-
     try {
         await ws.connect();
-
-        // Fetch slash commands
         ws.fetchSlashCommands().catch(() => {});
-
-        // Don't auto-resume — wait for user to type something
     } catch (err: any) {
         errorMessage.value = err.message || 'Failed to connect to Claude Code server';
     }
 });
 
-// Surface socket-level errors (e.g. a mid-session drop) into the error banner.
 watch(ws.error, (e) => {
     if (e) {
         errorMessage.value = e;
@@ -349,54 +313,35 @@ watch(ws.error, (e) => {
     }
 });
 
-// ── WebSocket event handler ─────────────────────────────────────
-
 ws.onEvent(async (event) => {
     switch (event.type) {
-        case 'delta':
+        case 'delta': {
             const last = messages.value[messages.value.length - 1];
             if (last?.role === 'assistant' && last.isStreaming) {
                 last.content += event.content;
             } else {
-                messages.value.push({
-                    role: 'assistant',
-                    content: event.content,
-                    id: Date.now(),
-                    isStreaming: true,
-                });
+                messages.value.push({ role: 'assistant', content: event.content, id: Date.now(), isStreaming: true });
             }
             break;
-
-        case 'tool_use':
+        }
+        case 'tool_use': {
             const lastMsg = messages.value[messages.value.length - 1];
             if (lastMsg?.role === 'assistant') {
                 if (!lastMsg.toolCalls) lastMsg.toolCalls = [];
-                lastMsg.toolCalls.push({
-                    name: event.name,
-                    input: event.input,
-                    tool_use_id: event.tool_use_id,
-                });
+                lastMsg.toolCalls.push({ name: event.name, input: event.input, tool_use_id: event.tool_use_id });
             }
-
-            // Track file changes for review panel
             if (event.name === 'Edit' || event.name === 'Write') {
                 const file = event.input?.file_path || event.input?.path || 'unknown';
                 fileChanges.value.push({
                     file,
                     toolName: event.name,
-                    added: event.name === 'Edit'
-                        ? (event.input?.new_string?.split('\n').length || 0)
-                        : (event.input?.content?.split('\n').length || 0),
-                    removed: event.name === 'Edit'
-                        ? (event.input?.old_string?.split('\n').length || 0)
-                        : 0,
+                    added: event.name === 'Edit' ? (event.input?.new_string?.split('\n').length || 0) : (event.input?.content?.split('\n').length || 0),
+                    removed: event.name === 'Edit' ? (event.input?.old_string?.split('\n').length || 0) : 0,
                 });
             }
             break;
-
+        }
         case 'tool_use_summary': {
-            // Fold the summary back into the originating assistant turn rather than
-            // rendering it as a separate pseudo-user message.
             const lastAssistant = messages.value.slice().reverse().find(m => m.role === 'assistant');
             if (lastAssistant?.toolCalls?.length) {
                 const target = lastAssistant.toolCalls.find(t => t.result === undefined);
@@ -405,105 +350,128 @@ ws.onEvent(async (event) => {
                     break;
                 }
             }
-            // Fallback to a compact status line if no matching tool call exists.
-            messages.value.push({
-                role: 'tool',
-                content: event.summary || 'Tool operation completed',
-                id: Date.now(),
-            });
+            messages.value.push({ role: 'tool', content: event.summary || 'Tool operation completed', id: Date.now() });
             break;
         }
-
+        case 'permission_request':
+            pendingPermissions.value.push(event);
+            break;
+        case 'question_request':
+            pendingQuestions.value.push(event);
+            break;
+        case 'dialog_request':
+            pendingDialogs.value.push(event);
+            break;
+        case 'elicitation_request':
+            pendingElicitations.value.push(event);
+            break;
+        case 'permission_denied': {
+            const lastAssistant = messages.value.slice().reverse().find(m => m.role === 'assistant');
+            const target = lastAssistant?.toolCalls?.find(t => t.tool_use_id === event.toolUseId);
+            if (target) {
+                target.result = event.reason || 'Permission denied';
+                target.isError = true;
+            }
+            break;
+        }
         case 'error':
             errorMessage.value = event.message;
             processing.value = false;
             break;
-
         case 'done':
-            // Accumulate session usage (shown in the config panel).
             usageStore.add(usageKey.value, typeof event.totalCostUsd === 'number' ? event.totalCostUsd : 0);
-
-            // Mark last assistant message as done streaming
             const lastDone = messages.value[messages.value.length - 1];
-            if (lastDone?.isStreaming) {
-                lastDone.isStreaming = false;
-            }
+            if (lastDone?.isStreaming) lastDone.isStreaming = false;
             processing.value = false;
-
-            // If this was a new session, navigate to the real session URL
-            // so the sidebar picks it up on re-render
+            clearPendingInteractions();
             if (isNewSession && activeSessionId.value) {
                 const newId = activeSessionId.value;
-                activeSessionId.value = null; // prevent re-trigger
-                navigateTo(
-                    `/projects/${encodeURIComponent(absolute_path)}/sessions/${newId}`,
-                    { replace: true }
-                );
+                activeSessionId.value = null;
+                navigateTo(`/projects/${encodeURIComponent(absolute_path)}/sessions/${newId}`, { replace: true });
             }
             break;
-
-        case 'cancelled':
+        case 'cancelled': {
             const lastCancelled = messages.value[messages.value.length - 1];
-            if (lastCancelled?.isStreaming) {
-                lastCancelled.isStreaming = false;
-            }
+            if (lastCancelled?.isStreaming) lastCancelled.isStreaming = false;
             processing.value = false;
+            clearPendingInteractions();
             break;
-
+        }
         case 'init':
             activeSessionId.value = event.sessionId;
-
-            // Refresh the project store so the sidebar picks up the new session
-            if (isNewSession) {
-                useSelectedProjectStore().set(absolute_path);
-            }
+            if (isNewSession) useSelectedProjectStore().set(absolute_path);
             break;
-
         case 'commands_changed':
-            // Slash commands are handled by the composable
             break;
     }
-
-    if (event.type !== 'pong' && event.type !== 'auth_ok') {
-        rawOutput.value.push(JSON.stringify(event, null, 2));
-    }
+    rawOutput.value.push(JSON.stringify(event, null, 2));
 });
 
-// ── Actions ─────────────────────────────────────────────────────
+function clearPendingInteractions() {
+    pendingPermissions.value = [];
+    pendingQuestions.value = [];
+    pendingDialogs.value = [];
+    pendingElicitations.value = [];
+}
+
+function allowPermission(requestId: string, updatedPermissions?: PermissionRequestMessage['permissionSuggestions']) {
+    ws.sendPermissionResponse(requestId, 'allow', { updatedPermissions });
+    pendingPermissions.value = pendingPermissions.value.filter(p => p.requestId !== requestId);
+}
+
+function denyPermission(requestId: string) {
+    ws.sendPermissionResponse(requestId, 'deny');
+    pendingPermissions.value = pendingPermissions.value.filter(p => p.requestId !== requestId);
+}
+
+function answerQuestion(requestId: string, answers: Record<string, string>, response?: string) {
+    ws.sendQuestionResponse(requestId, answers, { response });
+    pendingQuestions.value = pendingQuestions.value.filter(q => q.requestId !== requestId);
+}
+
+function completeDialog(requestId: string, result?: any) {
+    ws.sendDialogResponse(requestId, 'completed', result);
+    pendingDialogs.value = pendingDialogs.value.filter(d => d.requestId !== requestId);
+}
+
+function cancelDialog(requestId: string) {
+    ws.sendDialogResponse(requestId, 'cancelled');
+    pendingDialogs.value = pendingDialogs.value.filter(d => d.requestId !== requestId);
+}
+
+function acceptElicitation(requestId: string, content?: Record<string, any>) {
+    ws.sendElicitationResponse(requestId, 'accept', content);
+    pendingElicitations.value = pendingElicitations.value.filter(e => e.requestId !== requestId);
+}
+
+function declineElicitation(requestId: string) {
+    ws.sendElicitationResponse(requestId, 'decline');
+    pendingElicitations.value = pendingElicitations.value.filter(e => e.requestId !== requestId);
+}
 
 function sendPrompt() {
     const hasText = !!inputText.value.trim();
     const atts = attachments.value.map(a => ({ name: a.name, mediaType: a.mediaType, data: a.data }));
     if ((!hasText && atts.length === 0) || processing.value) return;
-
     const text = inputText.value;
     inputText.value = '';
     processing.value = true;
     errorMessage.value = null;
-
-    // Echo the user's message (with an attachment summary) into the transcript.
     const attachNote = atts.length
         ? `${hasText ? '\n\n' : ''}📎 ${atts.length} attachment${atts.length > 1 ? 's' : ''}: ${atts.map(a => a.name).join(', ')}`
         : '';
     messages.value.push({ role: 'user', content: text + attachNote, id: Date.now() });
     attachments.value = [];
-
     const model = claudeConfig.value.model;
     const effort = claudeConfig.value.effort;
-
     if (isNewSession && !activeSessionId.value) {
-        // Start a new session
         ws.startSession(text, { projectPath: absolute_path, model, effort, attachments: atts });
     } else if (activeSessionId.value) {
-        // Send message to the existing session (model/effort applied per-turn)
         ws.sendMessage(text, { model, effort, attachments: atts });
     } else {
-        // Resume then send
         ws.resumeSession(session_id, text, { projectPath: absolute_path, model, effort, attachments: atts });
     }
 }
-
-// ── Slash command menu ──────────────────────────────────────────
 
 const slashMenu = reactive({ show: false, filter: '', selectedIndex: 0 });
 const textareaComponent = ref<ComponentPublicInstance<{ textareaRef?: HTMLTextAreaElement }> | null>(null);
@@ -513,8 +481,7 @@ const filteredCommands = computed(() => {
     if (!cmds?.length) return [];
     const filter = slashMenu.filter.toLowerCase();
     return cmds.filter((cmd: any) =>
-        cmd.name.toLowerCase().includes(filter) ||
-        cmd.description.toLowerCase().includes(filter)
+        cmd.name.toLowerCase().includes(filter) || cmd.description.toLowerCase().includes(filter)
     );
 });
 
@@ -532,7 +499,6 @@ watch(inputText, (val) => {
 function selectCommand(cmd: any) {
     inputText.value = `/${cmd.name} `;
     slashMenu.show = false;
-    // Keep focus in the textarea after picking a command (a click otherwise loses it).
     nextTick(() => textareaComponent.value?.textareaRef?.focus());
 }
 
@@ -558,8 +524,6 @@ function onInputKeydown(e: KeyboardEvent) {
             return;
         }
     }
-
-    // Submit on Enter (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendPrompt();
@@ -567,28 +531,21 @@ function onInputKeydown(e: KeyboardEvent) {
 }
 
 function newSession() {
-    if (processing.value) {
-        ws.cancelSession();
-    }
+    if (processing.value) ws.cancelSession();
     messages.value = [];
     rawOutput.value = [];
     fileChanges.value = [];
     processing.value = false;
     errorMessage.value = null;
     activeSessionId.value = null;
-
+    clearPendingInteractions();
     navigateTo(`/projects/${encodeURIComponent(absolute_path)}/sessions/new`, { replace: true });
 }
 
-// ── Auto-scroll ─────────────────────────────────────────────────
-
 const chatContainer = ref<HTMLElement | null>(null);
-
 watch(messages, () => {
     const el = chatContainer.value;
     if (!el) return;
-    // Only stick to the bottom if the user is already near it — don't yank them down
-    // while they're scrolled up reading earlier output.
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     nextTick(() => {
         if (chatContainer.value && nearBottom) {
@@ -596,9 +553,7 @@ watch(messages, () => {
         }
     });
 }, { deep: true });
-
-</script>
-
+</script>\n\n
 <template>
     <UDashboardPanel id="session-chat">
         <template #header>
@@ -818,6 +773,39 @@ watch(messages, () => {
                                 </div>
                             </div>
                         </template>
+
+                        <!-- Pending interactive cards rendered inside the active assistant stream -->
+                        <div v-if="hasPendingInteraction" class="py-4">
+                            <div class="max-w-4xl mx-auto px-3 sm:px-4">
+                                <ClaudePermissionCard
+                                    v-for="p in pendingPermissions"
+                                    :key="p.requestId"
+                                    v-bind="p"
+                                    @allow="allowPermission"
+                                    @deny="denyPermission"
+                                />
+                                <ClaudeQuestionCard
+                                    v-for="q in pendingQuestions"
+                                    :key="q.requestId"
+                                    v-bind="q"
+                                    @answer="answerQuestion"
+                                />
+                                <ClaudeDialogCard
+                                    v-for="d in pendingDialogs"
+                                    :key="d.requestId"
+                                    v-bind="d"
+                                    @completed="completeDialog"
+                                    @cancelled="cancelDialog"
+                                />
+                                <ClaudeElicitationCard
+                                    v-for="e in pendingElicitations"
+                                    :key="e.requestId"
+                                    v-bind="e"
+                                    @accept="acceptElicitation"
+                                    @decline="declineElicitation"
+                                />
+                            </div>
+                        </div>
 
                         <!-- Processing indicator (no messages yet) -->
                         <div v-if="processing && messages.length === 0" class="py-5">
