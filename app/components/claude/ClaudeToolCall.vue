@@ -73,7 +73,7 @@ const prettyInput = computed(() => {
         <!-- Status dot + vertical connector -->
         <div class="flex flex-col items-center flex-shrink-0">
             <div
-                class="w-2.5 h-2.5 rounded-full mt-1.5"
+                class="w-2.5 h-2.5 rounded-full mt-[5px]"
                 :class="statusColor"
                 :title="statusLabel"
             />

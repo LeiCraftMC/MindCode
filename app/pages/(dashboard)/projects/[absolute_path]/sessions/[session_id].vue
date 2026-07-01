@@ -3,6 +3,7 @@ import { useClaudeWebSocket } from '~/composables/useClaudeWebSocket';
 import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
 import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
 import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
+import ClaudeToolCall from '~/components/claude/ClaudeToolCall.vue';
 
 definePageMeta({
     layout: 'dashboard',
@@ -736,7 +737,7 @@ watch(messages, () => {
                                         class="flex gap-2"
                                     >
                                         <div class="flex flex-col items-center flex-shrink-0">
-                                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400 mt-[3px]" title="Claude" />
+                                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400 mt-[10px]" title="Claude" />
                                             <div class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]" />
                                         </div>
 
@@ -777,7 +778,7 @@ watch(messages, () => {
 
                                     <!-- Tool calls rendered below without the assistant dot -->
                                     <div v-if="msg.toolCalls?.length" class="mt-2 space-y-0">
-                                        <ClaudeFileEdit
+                                        <ClaudeToolCall
                                             v-for="edit in msg.toolCalls"
                                             :key="edit.tool_use_id"
                                             :tool-name="edit.name"
