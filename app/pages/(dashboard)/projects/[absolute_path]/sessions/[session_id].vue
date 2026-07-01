@@ -4,6 +4,7 @@ import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
 import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
 import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
 import ClaudeToolCall from '~/components/claude/ClaudeToolCall.vue';
+import type { ComponentPublicInstance } from 'vue';
 
 definePageMeta({
     layout: 'dashboard',
@@ -61,6 +62,26 @@ const errorMessage = ref<string | null>(null);
 const activeSessionId = ref<string | null>(null);
 const historyLoaded = ref(false);
 const loadingHistory = ref(true);
+
+// Per-message expansion state for long historical messages
+const MESSAGE_TRUNCATE_LENGTH = 800;
+const expandedMessageIds = ref<Set<string | number>>(new Set());
+
+function isMessageLong(content: string): boolean {
+    return content.length > MESSAGE_TRUNCATE_LENGTH;
+}
+
+function truncatedContent(content: string, id: string | number): string {
+    if (!isMessageLong(content) || expandedMessageIds.value.has(id)) return content;
+    return content.slice(0, MESSAGE_TRUNCATE_LENGTH) + '…';
+}
+
+function toggleMessageExpanded(id: string | number) {
+    const next = new Set(expandedMessageIds.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    expandedMessageIds.value = next;
+}
 
 // ── Layout state ────────────────────────────────────────────────
 
@@ -485,7 +506,7 @@ function sendPrompt() {
 // ── Slash command menu ──────────────────────────────────────────
 
 const slashMenu = reactive({ show: false, filter: '', selectedIndex: 0 });
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const textareaComponent = ref<ComponentPublicInstance<{ textareaRef?: HTMLTextAreaElement }> | null>(null);
 
 const filteredCommands = computed(() => {
     const cmds = ws.slashCommands.value;
@@ -512,7 +533,7 @@ function selectCommand(cmd: any) {
     inputText.value = `/${cmd.name} `;
     slashMenu.show = false;
     // Keep focus in the textarea after picking a command (a click otherwise loses it).
-    nextTick(() => textareaRef.value?.focus());
+    nextTick(() => textareaComponent.value?.textareaRef?.focus());
 }
 
 function onInputKeydown(e: KeyboardEvent) {
@@ -709,12 +730,11 @@ watch(messages, () => {
 
                         <!-- Message list -->
                         <template v-for="msg in messages" :key="msg.id">
-                            <!-- User turn: prompt pill on a clean neutral band -->
+                            <!-- User turn: bubble using the same background as the chat input -->
                             <div v-if="msg.role === 'user'" class="py-3">
                                 <div class="max-w-4xl mx-auto px-3 sm:px-4">
-                                    <div class="flex items-start gap-2">
-                                        <UIcon name="i-lucide-user" class="w-4 h-4 mt-0.5 text-slate-500 flex-shrink-0" />
-                                        <div class="flex-1 min-w-0">
+                                    <div class="flex items-start justify-end">
+                                        <div class="max-w-[85%] sm:max-w-[75%]">
                                             <span
                                                 v-if="msg.isCommand"
                                                 class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 bg-slate-800 font-mono text-xs text-primary-300 border border-slate-700/50"
@@ -722,7 +742,20 @@ watch(messages, () => {
                                                 <UIcon name="i-lucide-terminal" class="w-3 h-3 text-slate-500" />
                                                 {{ msg.content }}
                                             </span>
-                                            <span v-else class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{{ msg.content }}</span>
+                                            <div
+                                                v-else
+                                                class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap break-words bg-slate-800/60 border border-slate-700/50 rounded-2xl px-4 py-2.5"
+                                            >
+                                                {{ truncatedContent(msg.content, msg.id) }}
+                                                <button
+                                                    v-if="isMessageLong(msg.content)"
+                                                    type="button"
+                                                    class="block mt-1.5 text-xs text-primary-400 hover:text-primary-300"
+                                                    @click="toggleMessageExpanded(msg.id)"
+                                                >
+                                                    {{ expandedMessageIds.has(msg.id) ? 'Show less' : 'Show more' }}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -909,17 +942,22 @@ watch(messages, () => {
                                 </div>
 
                                 <!-- Textarea -->
-                                <textarea
-                                    ref="textareaRef"
+                                <UTextarea
+                                    ref="textareaComponent"
                                     v-model="inputText"
                                     :disabled="!connected || processing"
                                     placeholder="Ask Claude anything..."
-                                    rows="1"
+                                    :rows="1"
+                                    :autoresize="true"
+                                    :maxrows="10"
+                                    variant="none"
+                                    color="neutral"
                                     role="combobox"
                                     aria-label="Message Claude"
                                     aria-controls="slash-command-menu"
                                     :aria-expanded="slashMenu.show"
-                                    class="flex-1 bg-transparent px-2 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none outline-none min-h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="flex-1"
+                                    :ui="{ base: 'px-2 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none outline-none min-h-10 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-0 shadow-none focus:ring-0' }"
                                     @keydown="onInputKeydown"
                                 />
 
