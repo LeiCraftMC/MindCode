@@ -77,7 +77,11 @@ const prettyInput = computed(() => {
                 :class="statusColor"
                 :title="statusLabel"
             />
-            <div class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]" />
+            <!-- Vertical connector line only shown if the card is expanded, to avoid visual clutter when collapsed. -->
+            <div
+                v-if="expanded"
+                class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]"
+            />
         </div>
 
         <!-- Card -->
