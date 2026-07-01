@@ -856,7 +856,7 @@ watch(messages, () => {
                         </div>
                     </Teleport>
 
-                    <div class="border-t border-slate-800 p-3 sm:p-4">
+                    <div class="p-3 sm:p-4">
                         <div class="max-w-4xl mx-auto">
                             <!-- Hidden file pickers -->
                             <input ref="fileInput" type="file" multiple class="hidden" @change="onFilesSelected" >
