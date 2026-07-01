@@ -45,14 +45,14 @@ const sidebarItems = computed(() => {
     if (currentProjectSessions.value.length > 0) {
         projectSessionsItems.push({
             label: "Sessions",
-            icon: "i-lucide-mail",
+            icon: "i-lucide-message-square",
             type: "label"
         });
 
         for (const session of currentProjectSessions.value) {
             projectSessionsItems.push({
                 label: session.title,
-                icon: "i-lucide-mail",
+                icon: "i-lucide-message-square",
                 to: `/projects/${encodeURIComponent(currentProject?.value?.absolute_path || '')}/sessions/${session.session_id}`,
                 exact: false,
             });
