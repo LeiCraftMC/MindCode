@@ -729,46 +729,53 @@ watch(messages, () => {
 
                             <!-- Assistant turn: full-width stream with colored tool chips -->
                             <div v-else-if="msg.role === 'assistant'" class="py-4">
-                                <div class="max-w-4xl mx-auto px-3 sm:px-4 space-y-3">
-                                    <!-- Agent header with grey dot -->
-                                    <div class="flex items-center gap-2 text-slate-400">
-                                        <div class="w-2.5 h-2.5 rounded-full bg-slate-400" title="Claude" />
-                                        <span class="text-xs font-medium">Claude</span>
-                                    </div>
-
-                                    <!-- Thinking block (collapsible) -->
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4">
+                                    <!-- Real assistant message with grey dot to the left -->
                                     <div
-                                        v-if="msg.thinking"
-                                        class="border border-slate-700/50 rounded-lg overflow-hidden"
+                                        v-if="msg.content || msg.thinking || msg.isStreaming"
+                                        class="flex gap-2"
                                     >
-                                        <details class="group">
-                                            <summary class="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-300 cursor-pointer bg-slate-900/40 hover:bg-slate-800/40 transition-colors">
-                                                <UIcon name="i-lucide-brain" class="w-3.5 h-3.5" />
-                                                <span>Thinking</span>
-                                                <UIcon name="i-lucide-chevron-down" class="w-3 h-3 ml-auto group-open:rotate-180 transition-transform" />
-                                            </summary>
-                                            <div class="px-3 py-2 text-xs text-slate-400 italic border-t border-slate-800 whitespace-pre-wrap">
-                                                {{ msg.thinking }}
+                                        <div class="flex flex-col items-center flex-shrink-0 pt-1.5">
+                                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400" title="Claude" />
+                                            <div class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]" />
+                                        </div>
+
+                                        <div class="flex-1 min-w-0 space-y-3">
+                                            <!-- Thinking block (collapsible) -->
+                                            <div
+                                                v-if="msg.thinking"
+                                                class="border border-slate-700/50 rounded-lg overflow-hidden"
+                                            >
+                                                <details class="group">
+                                                    <summary class="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-300 cursor-pointer bg-slate-900/40 hover:bg-slate-800/40 transition-colors">
+                                                        <UIcon name="i-lucide-brain" class="w-3.5 h-3.5" />
+                                                        <span>Thinking</span>
+                                                        <UIcon name="i-lucide-chevron-down" class="w-3 h-3 ml-auto group-open:rotate-180 transition-transform" />
+                                                    </summary>
+                                                    <div class="px-3 py-2 text-xs text-slate-400 italic border-t border-slate-800 whitespace-pre-wrap">
+                                                        {{ msg.thinking }}
+                                                    </div>
+                                                </details>
                                             </div>
-                                        </details>
+
+                                            <!-- Content (markdown rendered) -->
+                                            <ClaudeMarkdown
+                                                v-if="msg.content"
+                                                :content="msg.content"
+                                            />
+
+                                            <!-- Streaming indicator -->
+                                            <div
+                                                v-if="msg.isStreaming && !msg.content"
+                                                class="flex items-center gap-2 text-slate-400 text-sm"
+                                            >
+                                                <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
+                                                <span>Claude is thinking...</span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <!-- Content (markdown rendered) -->
-                                    <ClaudeMarkdown
-                                        v-if="msg.content"
-                                        :content="msg.content"
-                                    />
-
-                                    <!-- Streaming indicator -->
-                                    <div
-                                        v-if="msg.isStreaming && !msg.content"
-                                        class="flex items-center gap-2 text-slate-400 text-sm"
-                                    >
-                                        <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
-                                        <span>Claude is thinking...</span>
-                                    </div>
-
-                                    <!-- Tool calls -->
+                                    <!-- Tool calls rendered below without the assistant dot -->
                                     <div v-if="msg.toolCalls?.length" class="mt-2 space-y-0">
                                         <ClaudeFileEdit
                                             v-for="edit in msg.toolCalls"

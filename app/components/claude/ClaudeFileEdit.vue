@@ -36,9 +36,9 @@ const detail = computed(() => {
 });
 
 const resultSummary = computed(() => {
+    if (props.toolName === 'Read') return '';
     if (!props.result) return '';
     if (props.isError) return 'Error';
-    // Count lines for file ops, otherwise keep it short.
     const lines = props.result.split('\n').length;
     return `${lines} line${lines === 1 ? '' : 's'}`;
 });
@@ -56,7 +56,7 @@ const statusLabel = computed(() => {
     return 'Done';
 });
 
-// Read results are shown inline in the header; everything else can expand Input/Output.
+// Read tool calls are shown as a simple status line with no details or output.
 const hasExpandable = computed(() => props.toolName !== 'Read' && (!!props.input || !!props.result));
 
 const prettyInput = computed(() => {
@@ -71,9 +71,9 @@ const prettyInput = computed(() => {
 <template>
     <div class="flex gap-2">
         <!-- Status dot + vertical connector -->
-        <div class="flex flex-col items-center flex-shrink-0 pt-1">
+        <div class="flex flex-col items-center flex-shrink-0">
             <div
-                class="w-2.5 h-2.5 rounded-full"
+                class="w-2.5 h-2.5 rounded-full mt-1.5"
                 :class="statusColor"
                 :title="statusLabel"
             />
@@ -87,12 +87,6 @@ const prettyInput = computed(() => {
                 :disabled="!hasExpandable"
                 @click="expanded = !expanded"
             >
-                <UIcon
-                    :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                    class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
-                    :class="{ 'opacity-0': !hasExpandable }"
-                />
-
                 <span class="font-medium">{{ description }}</span>
                 <span
                     v-if="detail"
@@ -106,15 +100,13 @@ const prettyInput = computed(() => {
                 >
                     {{ resultSummary }}
                 </span>
-            </button>
 
-            <!-- Inline read result -->
-            <div
-                v-if="toolName === 'Read' && result"
-                class="mt-1.5"
-            >
-                <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72">{{ result }}</pre>
-            </div>
+                <UIcon
+                    :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                    class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
+                    :class="{ 'opacity-0': !hasExpandable }"
+                />
+            </button>
 
             <!-- Expanded details -->
             <div
@@ -145,11 +137,6 @@ const prettyInput = computed(() => {
                             <div class="text-[10px] uppercase tracking-wide text-green-400 font-semibold mb-1">Added</div>
                             <pre class="text-xs font-mono text-green-200 bg-green-950/40 border border-green-900/30 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
                         </div>
-                    </template>
-
-                    <!-- Read -->
-                    <template v-else-if="toolName === 'Read'">
-                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input?.file_path || description }}</pre>
                     </template>
 
                     <!-- Generic input -->
