@@ -238,7 +238,7 @@ function formatUserContent(raw: string): { content: string; isCommand: boolean }
     const cleaned = text
         .replace(/<\/?system-reminder[\s\S]*?<\/system-reminder>/gi, "")
         .replace(/<\/?(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>/g, "")
-        .replace(/<\/?ide_opened_file>/g, "")
+        .replace(/\<\/?ide_[^\>\s]+>(?:[\s\S]*?\<\/ide_[^\>\s]+>)?/g, "")
         .trim();
     if (!cleaned) return null;
     return { content: cleaned, isCommand: false };
