@@ -384,13 +384,25 @@ ws.onEvent(async (event) => {
             }
             break;
 
-        case 'tool_use_summary':
+        case 'tool_use_summary': {
+            // Fold the summary back into the originating assistant turn rather than
+            // rendering it as a separate pseudo-user message.
+            const lastAssistant = messages.value.slice().reverse().find(m => m.role === 'assistant');
+            if (lastAssistant?.toolCalls?.length) {
+                const target = lastAssistant.toolCalls.find(t => t.result === undefined);
+                if (target) {
+                    target.result = event.summary || 'Tool operation completed';
+                    break;
+                }
+            }
+            // Fallback to a compact status line if no matching tool call exists.
             messages.value.push({
                 role: 'tool',
                 content: event.summary || 'Tool operation completed',
                 id: Date.now(),
             });
             break;
+        }
 
         case 'error':
             errorMessage.value = event.message;
@@ -643,7 +655,7 @@ watch(messages, () => {
                         size="sm"
                         title="Configuration"
                         aria-label="Configuration"
-                        @click="configOpen = !configOpen"
+                        @click="configOpen = !configOpen; void 0"
                     />
                 </div>
             </div>
@@ -666,7 +678,7 @@ watch(messages, () => {
                             variant="ghost"
                             size="xs"
                             aria-label="Dismiss error"
-                            @click="errorMessage = null"
+                            @click="errorMessage = null; void 0"
                         />
                     </div>
 
@@ -682,7 +694,7 @@ watch(messages, () => {
                     <div
                         v-else
                         ref="chatContainer"
-                        class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4"
+                        class="flex-1 overflow-y-auto pb-4 space-y-0"
                     >
                         <!-- Welcome state for new session -->
                         <div
@@ -708,37 +720,29 @@ watch(messages, () => {
 
                         <!-- Message list -->
                         <template v-for="msg in messages" :key="msg.id">
-                            <!-- User message -->
-                            <div v-if="msg.role === 'user'" class="flex gap-3 w-full justify-end">
-                                <!-- Slash command invocation -->
-                                <div
-                                    v-if="msg.isCommand"
-                                    class="flex items-center gap-2 rounded-lg px-3 py-1.5 mt-0.5 bg-slate-800/60 border border-slate-700/50 font-mono text-xs text-primary-300 max-w-[85%] sm:max-w-[70%] break-all"
-                                >
-                                    <UIcon name="i-lucide-terminal" class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                                    {{ msg.content }}
-                                </div>
-                                <!-- Regular user message -->
-                                <div v-else class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] sm:max-w-[70%] bg-primary-500/20 border border-primary-500/30">
-                                    <div class="text-sm text-slate-200 whitespace-pre-wrap break-words">
-                                        {{ msg.content }}
+                            <!-- User turn -->
+                            <div v-if="msg.role === 'user'" class="py-5">
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4">
+                                    <div class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
+                                        <span
+                                            v-if="msg.isCommand"
+                                            class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 bg-slate-800 font-mono text-xs text-primary-300 border border-slate-700/50"
+                                        >
+                                            <UIcon name="i-lucide-terminal" class="w-3 h-3 text-slate-500" />
+                                            {{ msg.content }}
+                                        </span>
+                                        <span v-else>{{ msg.content }}</span>
                                     </div>
-                                </div>
-                                <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0 mt-1">
-                                    <UIcon name="i-lucide-user" class="text-white w-4 h-4" />
                                 </div>
                             </div>
 
-                            <!-- Assistant message -->
-                            <div v-else-if="msg.role === 'assistant'" class="flex gap-3 w-full justify-start">
-                                <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0 mt-1">
-                                    <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
-                                </div>
-                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[90%] sm:max-w-[85%] bg-slate-800/60 border border-slate-700/50">
+                            <!-- Assistant turn -->
+                            <div v-else-if="msg.role === 'assistant'" class="bg-slate-900/30 border-y border-slate-800/50 -my-[1px] py-5 first:mt-0">
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4">
                                     <!-- Thinking block (collapsible) -->
                                     <div
                                         v-if="msg.thinking"
-                                        class="mb-2 border border-slate-700/50 rounded-lg overflow-hidden"
+                                        class="mb-3 border border-slate-700/50 rounded-lg overflow-hidden"
                                     >
                                         <details class="group">
                                             <summary class="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-300 cursor-pointer bg-slate-900/40 hover:bg-slate-800/40 transition-colors">
@@ -769,7 +773,7 @@ watch(messages, () => {
                                     </div>
 
                                     <!-- Tool calls -->
-                                    <div v-if="msg.toolCalls?.length" class="mt-2 space-y-1">
+                                    <div v-if="msg.toolCalls?.length" class="mt-3 space-y-1.5">
                                         <ClaudeFileEdit
                                             v-for="edit in msg.toolCalls"
                                             :key="edit.tool_use_id"
@@ -782,47 +786,32 @@ watch(messages, () => {
                                 </div>
                             </div>
 
-                            <!-- Tool message -->
-                            <div v-else class="flex gap-3 w-full justify-start">
-                                <div class="w-8 h-8 rounded-full bg-amber-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                                    <UIcon name="i-lucide-wrench" class="text-amber-400 w-4 h-4" />
-                                </div>
-                                <div class="rounded-xl px-4 py-3 min-w-0 max-w-[85%] bg-amber-500/10 border border-amber-500/30 text-amber-300">
-                                    <div class="flex items-center gap-2 text-sm">
-                                        <UIcon name="i-lucide-wrench" class="w-4 h-4 flex-shrink-0" />
-                                        <span>{{ msg.content }}</span>
-                                    </div>
+                            <!-- Tool status line -->
+                            <div v-else class="py-3 bg-slate-900/50">
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-2 text-xs text-slate-500">
+                                    <UIcon name="i-lucide-wrench" class="w-3.5 h-3.5 text-slate-500" />
+                                    <span>{{ msg.content }}</span>
                                 </div>
                             </div>
                         </template>
 
                         <!-- Processing indicator (no messages yet) -->
-                        <div v-if="processing && messages.length === 0" class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
-                                <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
-                            </div>
-                            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3">
-                                <div class="flex items-center gap-2 text-slate-400 text-sm">
-                                    <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
-                                    <span>Claude is thinking...</span>
-                                </div>
+                        <div v-if="processing && messages.length === 0" class="py-5">
+                            <div class="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-2 text-slate-400 text-sm">
+                                <UIcon name="i-lucide-loader" class="w-4 h-4 animate-spin" />
+                                <span>Claude is thinking...</span>
                             </div>
                         </div>
 
                         <!-- Typing indicator (processing with existing messages) -->
-                        <div v-if="processing && messages.length > 0" class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
-                                <UIcon name="i-lucide-bot" class="text-white w-4 h-4" />
-                            </div>
-                            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3">
-                                <div class="flex items-center gap-2 text-slate-400 text-sm">
-                                    <div class="flex items-center gap-1">
-                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
-                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
-                                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
-                                    </div>
-                                    <span>Claude is working...</span>
+                        <div v-if="processing && messages.length > 0" class="py-5">
+                            <div class="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-2 text-slate-400 text-sm">
+                                <div class="flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
+                                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
+                                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
                                 </div>
+                                <span>Claude is working...</span>
                             </div>
                         </div>
                     </div>

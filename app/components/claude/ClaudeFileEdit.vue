@@ -40,9 +40,6 @@ const iconClass = computed(() => {
     }
 });
 
-// Tools with a bespoke expanded view; everything else uses the generic JSON view.
-const KNOWN = new Set(['Bash', 'Write', 'Edit', 'Read']);
-const isKnown = computed(() => KNOWN.has(props.toolName));
 
 const prettyInput = computed(() => {
     try {
@@ -56,7 +53,7 @@ const hasExpandable = computed(() => !!props.input || !!props.result);
 </script>
 
 <template>
-    <div class="border border-slate-700/50 rounded-lg overflow-hidden bg-slate-900/60 my-2">
+    <div class="border border-slate-700/50 rounded-lg overflow-hidden bg-slate-900/60">
         <!-- Header -->
         <button
             class="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-slate-800/40 transition-colors"
