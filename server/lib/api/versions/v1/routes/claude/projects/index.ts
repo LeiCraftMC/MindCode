@@ -47,7 +47,7 @@ async function getExistingProjects() {
 
 async function getProjectWithSessions(absolute_path: string) {
 
-    const all_claude_sessions = await listSessions();
+    const all_claude_sessions = await listSessions({dir: absolute_path});
 
     const project_with_sessions: ProjectModel.Project.NotExistsWithSessions | ProjectModel.Project.ExistingWithSessions = {
         exists: false,
@@ -58,12 +58,6 @@ async function getProjectWithSessions(absolute_path: string) {
     };
 
     for (const session of all_claude_sessions) {
-
-        const project_path = session.cwd;
-
-        if (!project_path || project_path !== absolute_path) {
-            continue;
-        }
 
         if (project_with_sessions.exists === false) {
             (project_with_sessions as any as ProjectModel.Project.ExistingWithSessions).exists = true;
