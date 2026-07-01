@@ -2,24 +2,7 @@
 import { useClaudeWebSocket } from '~/composables/useClaudeWebSocket';
 import type { ClaudeConfig } from '~/components/claude/ClaudeConfigPanel.vue';
 import type { GetClaudeProjectsByAbsolutePathSessionsBySessionIdMessagesResponses } from '~/api-client';
-import { marked } from 'marked';
-import DOMPurify from 'isomorphic-dompurify';
 import { useSelectedProjectStore } from '~/composables/stores/useSelectedProjectStore';
-
-// ── Helpers ─────────────────────────────────────────────────────
-
-// Renders untrusted assistant/tool markdown to HTML. The output is always
-// passed through DOMPurify before it reaches v-html to prevent DOM XSS.
-function renderMarkdown(text: string): string {
-    if (!text) return '';
-    try {
-        const result = marked(text, { breaks: true, gfm: true });
-        const html = typeof result === 'string' ? result : '';
-        return DOMPurify.sanitize(html);
-    } catch {
-        return DOMPurify.sanitize(text);
-    }
-}
 
 definePageMeta({
     layout: 'dashboard',
@@ -242,15 +225,20 @@ function formatUserContent(raw: string): { content: string; isCommand: boolean }
         return { content: `/${nameMatch[1]}${args ? ' ' + args : ''}`, isCommand: true };
     }
 
-    const NOISE = ['task-notification', 'local-command-stdout', 'local-command-caveat', 'system-reminder'];
-    if (text.startsWith('[SYSTEM NOTIFICATION') || NOISE.some(t => text.startsWith(`<${t}>`) || text.startsWith(`<${t} `))) {
+    const NOISE = ["task-notification", "local-command-stdout", "local-command-caveat", "system-reminder"];
+    if (text.startsWith("[SYSTEM NOTIFICATION") || NOISE.some(t => text.startsWith(`<${t}>`) || text.startsWith(`[${t}]`))) {
         return null;
     }
 
-    // Strip any embedded system-reminder blocks / stray wrapper tags from real messages.
+    // The SDK injects this marker into transcripts when a turn ends; don't show it as a user message.
+    if (/^\[Request interrupted by user[^\]]*\]/.test(text)) {
+        return null;
+    }
+
     const cleaned = text
-        .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
-        .replace(/<\/?(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>/g, '')
+        .replace(/<\/?system-reminder[\s\S]*?<\/system-reminder>/gi, "")
+        .replace(/<\/?(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>/g, "")
+        .replace(/<\/?ide_opened_file>/g, "")
         .trim();
     if (!cleaned) return null;
     return { content: cleaned, isCommand: false };
@@ -720,29 +708,32 @@ watch(messages, () => {
 
                         <!-- Message list -->
                         <template v-for="msg in messages" :key="msg.id">
-                            <!-- User turn -->
-                            <div v-if="msg.role === 'user'" class="py-5">
+                            <!-- User turn: prompt pill on a clean neutral band -->
+                            <div v-if="msg.role === 'user'" class="py-3">
                                 <div class="max-w-4xl mx-auto px-3 sm:px-4">
-                                    <div class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
-                                        <span
-                                            v-if="msg.isCommand"
-                                            class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 bg-slate-800 font-mono text-xs text-primary-300 border border-slate-700/50"
-                                        >
-                                            <UIcon name="i-lucide-terminal" class="w-3 h-3 text-slate-500" />
-                                            {{ msg.content }}
-                                        </span>
-                                        <span v-else>{{ msg.content }}</span>
+                                    <div class="flex items-start gap-2">
+                                        <UIcon name="i-lucide-user" class="w-4 h-4 mt-0.5 text-slate-500 flex-shrink-0" />
+                                        <div class="flex-1 min-w-0">
+                                            <span
+                                                v-if="msg.isCommand"
+                                                class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 bg-slate-800 font-mono text-xs text-primary-300 border border-slate-700/50"
+                                            >
+                                                <UIcon name="i-lucide-terminal" class="w-3 h-3 text-slate-500" />
+                                                {{ msg.content }}
+                                            </span>
+                                            <span v-else class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{{ msg.content }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Assistant turn -->
-                            <div v-else-if="msg.role === 'assistant'" class="bg-slate-900/30 border-y border-slate-800/50 -my-[1px] py-5 first:mt-0">
-                                <div class="max-w-4xl mx-auto px-3 sm:px-4">
+                            <!-- Assistant turn: full-width stream with colored tool chips -->
+                            <div v-else-if="msg.role === 'assistant'" class="py-4">
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4 space-y-3">
                                     <!-- Thinking block (collapsible) -->
                                     <div
                                         v-if="msg.thinking"
-                                        class="mb-3 border border-slate-700/50 rounded-lg overflow-hidden"
+                                        class="border border-slate-700/50 rounded-lg overflow-hidden"
                                     >
                                         <details class="group">
                                             <summary class="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-300 cursor-pointer bg-slate-900/40 hover:bg-slate-800/40 transition-colors">
@@ -757,10 +748,9 @@ watch(messages, () => {
                                     </div>
 
                                     <!-- Content (markdown rendered) -->
-                                    <div
+                                    <ClaudeMarkdown
                                         v-if="msg.content"
-                                        class="prose prose-invert prose-sm max-w-none break-words"
-                                        v-html="renderMarkdown(msg.content)"
+                                        :content="msg.content"
                                     />
 
                                     <!-- Streaming indicator -->
@@ -773,7 +763,7 @@ watch(messages, () => {
                                     </div>
 
                                     <!-- Tool calls -->
-                                    <div v-if="msg.toolCalls?.length" class="mt-3 space-y-1.5">
+                                    <div v-if="msg.toolCalls?.length" class="flex flex-wrap items-center gap-2">
                                         <ClaudeFileEdit
                                             v-for="edit in msg.toolCalls"
                                             :key="edit.tool_use_id"
@@ -786,11 +776,13 @@ watch(messages, () => {
                                 </div>
                             </div>
 
-                            <!-- Tool status line -->
-                            <div v-else class="py-3 bg-slate-900/50">
-                                <div class="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-2 text-xs text-slate-500">
-                                    <UIcon name="i-lucide-wrench" class="w-3.5 h-3.5 text-slate-500" />
-                                    <span>{{ msg.content }}</span>
+                            <!-- Tool status line (legacy fallback) -->
+                            <div v-else class="py-3">
+                                <div class="max-w-4xl mx-auto px-3 sm:px-4">
+                                    <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs border bg-slate-800/60 border-slate-700/50 text-slate-400">
+                                        <UIcon name="i-lucide-wrench" class="w-3.5 h-3.5" />
+                                        {{ msg.content }}
+                                    </span>
                                 </div>
                             </div>
                         </template>
@@ -974,42 +966,5 @@ watch(messages, () => {
 }
 .animate-bounce {
     animation: bounce 1.4s ease-in-out infinite;
-}
-
-.prose :deep(pre) {
-    background: rgb(15 23 42);
-    border: 1px solid rgb(51 65 85);
-    border-radius: 0.5rem;
-    overflow-x: auto;
-    padding: 0.75rem;
-    margin: 0.5rem 0;
-    position: relative;
-}
-
-.prose :deep(code) {
-    font-size: 0.8em;
-    background: rgb(30 41 59);
-    padding: 0.125rem 0.25rem;
-    border-radius: 0.25rem;
-}
-
-.prose :deep(pre code) {
-    background: none;
-    padding: 0;
-    border-radius: 0;
-}
-
-.prose :deep(p) {
-    margin: 0.25rem 0;
-}
-
-.prose :deep(ul), .prose :deep(ol) {
-    margin: 0.25rem 0;
-    padding-left: 1.25rem;
-}
-
-.prose :deep(a) {
-    color: rgb(96 165 250);
-    text-decoration: underline;
 }
 </style>

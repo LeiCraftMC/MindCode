@@ -8,8 +8,7 @@ const props = defineProps<{
 
 const expanded = ref(false);
 
-// A short, human-readable label for the tool-call header, derived from whichever
-// input field best identifies the call (works for any tool, not just file edits).
+// Short label identifying what the tool call is acting on.
 const label = computed(() => {
     const i = props.input || {};
     return i.file_path || i.path || i.command || i.pattern || i.query
@@ -31,15 +30,19 @@ const icon = computed(() => {
     }
 });
 
-const iconClass = computed(() => {
+// Color-coded bubble style: success-ish for writes/edits, neutral for reads, amber for bash.
+const chipColor = computed(() => {
+    if (props.isError) return 'error';
     switch (props.toolName) {
-        case 'Edit': return 'text-primary-400';
-        case 'Write': return 'text-success';
-        case 'Bash': return 'text-slate-400';
-        default: return 'text-slate-400';
+        case 'Edit': return 'success';
+        case 'Write': return 'success';
+        case 'Read': return 'neutral';
+        case 'Bash': return 'warning';
+        default: return 'neutral';
     }
 });
 
+const hasExpandable = computed(() => !!props.input || !!props.result);
 
 const prettyInput = computed(() => {
     try {
@@ -48,81 +51,90 @@ const prettyInput = computed(() => {
         return String(props.input);
     }
 });
-
-const hasExpandable = computed(() => !!props.input || !!props.result);
 </script>
 
 <template>
-    <div class="border border-slate-700/50 rounded-lg overflow-hidden bg-slate-900/60">
-        <!-- Header -->
+    <div>
+        <!-- Compact status chip -->
         <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono hover:bg-slate-800/40 transition-colors"
+            class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs border transition-colors"
+            :class="[
+                chipColor === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/15' :
+                chipColor === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/15' :
+                chipColor === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/15' :
+                                         'bg-slate-800/60 border-slate-700/50 text-slate-300 hover:bg-slate-800'
+            ]"
             :disabled="!hasExpandable"
             @click="expanded = !expanded"
         >
             <UIcon
                 :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
+                class="w-3 h-3 flex-shrink-0 opacity-80"
                 :class="{ 'opacity-0': !hasExpandable }"
             />
-            <UIcon :name="icon" :class="['w-4 h-4 flex-shrink-0', iconClass]" />
-            <span class="text-slate-300 truncate flex-1 text-left">{{ label }}</span>
+            <UIcon :name="icon" class="w-3.5 h-3.5 flex-shrink-0" />
+            <span class="font-mono truncate max-w-[260px] sm:max-w-[360px] text-left">{{ label }}</span>
             <UIcon
                 v-if="isError"
                 name="i-lucide-circle-alert"
-                class="w-3.5 h-3.5 text-error flex-shrink-0"
+                class="w-3.5 h-3.5 flex-shrink-0"
             />
-            <span class="text-slate-600 flex-shrink-0">{{ toolName }}</span>
+            <span class="text-[10px] opacity-70 flex-shrink-0">{{ toolName }}</span>
         </button>
 
-        <!-- Expanded content -->
-        <div v-if="expanded && hasExpandable" class="border-t border-slate-800 p-3 space-y-2">
-            <!-- Command (Bash) -->
-            <template v-if="toolName === 'Bash'">
-                <div class="text-xs text-slate-500 mb-1">Command:</div>
-                <pre class="text-xs text-success bg-black/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">{{ input?.command }}</pre>
-            </template>
+        <!-- Expanded detail panel -->
+        <div
+            v-if="expanded && hasExpandable"
+            class="mt-2 border border-slate-700/50 rounded-lg bg-slate-900/60 overflow-hidden"
+        >
+            <div class="p-3 space-y-2 text-xs">
+                <!-- Bash command -->
+                <template v-if="toolName === 'Bash'">
+                    <div class="text-slate-500">Command:</div>
+                    <pre class="font-mono text-success bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input?.command }}</pre>
+                </template>
 
-            <!-- File content (Write) -->
-            <template v-else-if="toolName === 'Write'">
-                <div class="text-xs text-slate-500 mb-1">Content:</div>
-                <pre class="text-xs text-slate-200 bg-black/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">{{ input?.content }}</pre>
-            </template>
+                <!-- Write file content -->
+                <template v-else-if="toolName === 'Write'">
+                    <div class="text-slate-500">Content:</div>
+                    <pre class="font-mono text-slate-200 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-60">{{ input?.content }}</pre>
+                </template>
 
-            <!-- File edit (Edit) -->
-            <template v-else-if="toolName === 'Edit'">
-                <div v-if="input?.old_string" class="space-y-1">
-                    <div class="text-xs text-red-400 font-medium">Removed:</div>
-                    <pre class="text-xs text-red-300 bg-red-950/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap line-through">{{ input.old_string }}</pre>
-                </div>
-                <div v-if="input?.new_string" class="space-y-1">
-                    <div class="text-xs text-green-400 font-medium">Added:</div>
-                    <pre class="text-xs text-green-300 bg-green-950/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
-                </div>
-            </template>
+                <!-- Edit diff -->
+                <template v-else-if="toolName === 'Edit'">
+                    <div v-if="input?.old_string" class="space-y-1">
+                        <div class="text-red-400 font-medium">Removed:</div>
+                        <pre class="font-mono text-red-300 bg-red-950/40 p-2 rounded overflow-x-auto whitespace-pre-wrap line-through">{{ input.old_string }}</pre>
+                    </div>
+                    <div v-if="input?.new_string" class="space-y-1">
+                        <div class="text-green-400 font-medium">Added:</div>
+                        <pre class="font-mono text-green-300 bg-green-950/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
+                    </div>
+                </template>
 
-            <!-- Read -->
-            <template v-else-if="toolName === 'Read'">
-                <div class="text-xs text-slate-500 mb-1">File read:</div>
-                <pre class="text-xs text-slate-300 bg-black/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">{{ input?.file_path || label }}</pre>
-            </template>
+                <!-- Read -->
+                <template v-else-if="toolName === 'Read'">
+                    <div class="text-slate-500">File read:</div>
+                    <pre class="font-mono text-slate-300 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input?.file_path || label }}</pre>
+                </template>
 
-            <!-- Generic tool input -->
-            <template v-else-if="input">
-                <div class="text-xs text-slate-500 mb-1">Input:</div>
-                <pre class="text-xs text-slate-300 bg-black/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">{{ prettyInput }}</pre>
-            </template>
+                <!-- Generic input -->
+                <template v-else-if="input">
+                    <div class="text-slate-500">Input:</div>
+                    <pre class="font-mono text-slate-300 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-60">{{ prettyInput }}</pre>
+                </template>
 
-            <!-- Tool result (any tool) -->
-            <template v-if="result">
-                <div class="text-xs mb-1" :class="isError ? 'text-error' : 'text-slate-500'">
-                    {{ isError ? 'Error:' : 'Result:' }}
-                </div>
-                <pre
-                    class="text-xs bg-black/40 p-2 rounded font-mono overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto"
-                    :class="isError ? 'text-red-300' : 'text-slate-400'"
-                >{{ result }}</pre>
-            </template>
+                <!-- Result -->
+                <template v-if="result">
+                    <div :class="isError ? 'text-error' : 'text-slate-500'">
+                        {{ isError ? 'Error:' : 'Result:' }}
+                    </div>
+                    <pre
+                        class="font-mono bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-48"
+                        :class="isError ? 'text-red-300' : 'text-slate-400'"
+                    >{{ result }}</pre>
+                </template>
+            </div>
         </div>
     </div>
 </template>
