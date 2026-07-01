@@ -730,6 +730,12 @@ watch(messages, () => {
                             <!-- Assistant turn: full-width stream with colored tool chips -->
                             <div v-else-if="msg.role === 'assistant'" class="py-4">
                                 <div class="max-w-4xl mx-auto px-3 sm:px-4 space-y-3">
+                                    <!-- Agent header with grey dot -->
+                                    <div class="flex items-center gap-2 text-slate-400">
+                                        <div class="w-2.5 h-2.5 rounded-full bg-slate-400" title="Claude" />
+                                        <span class="text-xs font-medium">Claude</span>
+                                    </div>
+
                                     <!-- Thinking block (collapsible) -->
                                     <div
                                         v-if="msg.thinking"

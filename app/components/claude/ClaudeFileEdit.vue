@@ -56,7 +56,8 @@ const statusLabel = computed(() => {
     return 'Done';
 });
 
-const hasExpandable = computed(() => !!props.input || !!props.result);
+// Read results are shown inline in the header; everything else can expand Input/Output.
+const hasExpandable = computed(() => props.toolName !== 'Read' && (!!props.input || !!props.result));
 
 const prettyInput = computed(() => {
     try {
@@ -106,6 +107,14 @@ const prettyInput = computed(() => {
                     {{ resultSummary }}
                 </span>
             </button>
+
+            <!-- Inline read result -->
+            <div
+                v-if="toolName === 'Read' && result"
+                class="mt-1.5"
+            >
+                <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72">{{ result }}</pre>
+            </div>
 
             <!-- Expanded details -->
             <div
