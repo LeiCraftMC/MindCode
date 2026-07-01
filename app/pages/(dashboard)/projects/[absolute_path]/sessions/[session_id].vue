@@ -763,7 +763,7 @@ watch(messages, () => {
                                     </div>
 
                                     <!-- Tool calls -->
-                                    <div v-if="msg.toolCalls?.length" class="flex flex-wrap items-center gap-2">
+                                    <div v-if="msg.toolCalls?.length" class="mt-2 space-y-0">
                                         <ClaudeFileEdit
                                             v-for="edit in msg.toolCalls"
                                             :key="edit.tool_use_id"

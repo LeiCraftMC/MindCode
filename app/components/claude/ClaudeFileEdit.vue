@@ -8,38 +8,52 @@ const props = defineProps<{
 
 const expanded = ref(false);
 
-// Short label identifying what the tool call is acting on.
-const label = computed(() => {
+const description = computed(() => {
     const i = props.input || {};
-    return i.file_path || i.path || i.command || i.pattern || i.query
-        || i.subject || i.url || i.prompt || i.description || props.toolName;
-});
-
-const icon = computed(() => {
     switch (props.toolName) {
-        case 'Edit': return 'i-lucide-file-pen';
-        case 'Write': return 'i-lucide-file-plus';
-        case 'Read': return 'i-lucide-file-text';
-        case 'Bash': return 'i-lucide-terminal';
-        case 'Grep':
-        case 'Glob': return 'i-lucide-search';
-        case 'Task': return 'i-lucide-bot';
-        case 'TodoWrite': return 'i-lucide-list-checks';
+        case 'Edit': return 'Edit';
+        case 'Write': return 'Write';
+        case 'Read': return 'Read';
+        case 'Bash': return 'Bash';
+        case 'Grep': return 'Grep';
+        case 'Glob': return 'Glob';
+        case 'Task': return 'Task';
+        case 'TodoWrite': return 'Update todos';
         default:
-            return props.toolName.startsWith('mcp__') ? 'i-lucide-plug' : 'i-lucide-wrench';
+            if (props.toolName.startsWith('mcp__')) return 'MCP';
+            return props.toolName;
     }
 });
 
-// Color-coded bubble style: success-ish for writes/edits, neutral for reads, amber for bash.
-const chipColor = computed(() => {
-    if (props.isError) return 'error';
-    switch (props.toolName) {
-        case 'Edit': return 'success';
-        case 'Write': return 'success';
-        case 'Read': return 'neutral';
-        case 'Bash': return 'warning';
-        default: return 'neutral';
-    }
+// Target/path/detail shown next to the action label in a muted color.
+const detail = computed(() => {
+    const i = props.input || {};
+    if (props.toolName === 'Bash') return i.description || i.command || '';
+    if (props.toolName === 'Grep' || props.toolName === 'Glob') return i.pattern || i.query || '';
+    if (props.toolName === 'Task') return i.description || i.prompt || '';
+    if (props.toolName === 'TodoWrite') return '';
+    return i.file_path || i.path || i.command || i.pattern || i.query || i.subject || i.url || i.prompt || i.description || '';
+});
+
+const resultSummary = computed(() => {
+    if (!props.result) return '';
+    if (props.isError) return 'Error';
+    // Count lines for file ops, otherwise keep it short.
+    const lines = props.result.split('\n').length;
+    return `${lines} line${lines === 1 ? '' : 's'}`;
+});
+
+// Claude Code-style status dot: green on success, red on error, grey while running/pending.
+const statusColor = computed(() => {
+    if (props.isError) return 'bg-red-500';
+    if (props.result === undefined) return 'bg-slate-400';
+    return 'bg-green-500';
+});
+
+const statusLabel = computed(() => {
+    if (props.isError) return 'Failed';
+    if (props.result === undefined) return 'Running';
+    return 'Done';
 });
 
 const hasExpandable = computed(() => !!props.input || !!props.result);
@@ -54,86 +68,102 @@ const prettyInput = computed(() => {
 </script>
 
 <template>
-    <div>
-        <!-- Compact status chip -->
-        <button
-            class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs border transition-colors"
-            :class="[
-                chipColor === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/15' :
-                chipColor === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/15' :
-                chipColor === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/15' :
-                                         'bg-slate-800/60 border-slate-700/50 text-slate-300 hover:bg-slate-800'
-            ]"
-            :disabled="!hasExpandable"
-            @click="expanded = !expanded"
-        >
-            <UIcon
-                :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                class="w-3 h-3 flex-shrink-0 opacity-80"
-                :class="{ 'opacity-0': !hasExpandable }"
+    <div class="flex gap-2">
+        <!-- Status dot + vertical connector -->
+        <div class="flex flex-col items-center flex-shrink-0 pt-1">
+            <div
+                class="w-2.5 h-2.5 rounded-full"
+                :class="statusColor"
+                :title="statusLabel"
             />
-            <UIcon :name="icon" class="w-3.5 h-3.5 flex-shrink-0" />
-            <span class="font-mono truncate max-w-[260px] sm:max-w-[360px] text-left">{{ label }}</span>
-            <UIcon
-                v-if="isError"
-                name="i-lucide-circle-alert"
-                class="w-3.5 h-3.5 flex-shrink-0"
-            />
-            <span class="text-[10px] opacity-70 flex-shrink-0">{{ toolName }}</span>
-        </button>
+            <div class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]" />
+        </div>
 
-        <!-- Expanded detail panel -->
-        <div
-            v-if="expanded && hasExpandable"
-            class="mt-2 border border-slate-700/50 rounded-lg bg-slate-900/60 overflow-hidden"
-        >
-            <div class="p-3 space-y-2 text-xs">
-                <!-- Bash command -->
-                <template v-if="toolName === 'Bash'">
-                    <div class="text-slate-500">Command:</div>
-                    <pre class="font-mono text-success bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input?.command }}</pre>
-                </template>
+        <!-- Card -->
+        <div class="flex-1 min-w-0 pb-2">
+            <button
+                class="w-full flex items-center gap-2 text-left text-sm text-slate-200 hover:text-slate-100 transition-colors group"
+                :disabled="!hasExpandable"
+                @click="expanded = !expanded"
+            >
+                <UIcon
+                    :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                    class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
+                    :class="{ 'opacity-0': !hasExpandable }"
+                />
 
-                <!-- Write file content -->
-                <template v-else-if="toolName === 'Write'">
-                    <div class="text-slate-500">Content:</div>
-                    <pre class="font-mono text-slate-200 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-60">{{ input?.content }}</pre>
-                </template>
+                <span class="font-medium">{{ description }}</span>
+                <span
+                    v-if="detail"
+                    class="text-slate-500 truncate"
+                    :title="detail"
+                >{{ detail }}</span>
 
-                <!-- Edit diff -->
-                <template v-else-if="toolName === 'Edit'">
-                    <div v-if="input?.old_string" class="space-y-1">
-                        <div class="text-red-400 font-medium">Removed:</div>
-                        <pre class="font-mono text-red-300 bg-red-950/40 p-2 rounded overflow-x-auto whitespace-pre-wrap line-through">{{ input.old_string }}</pre>
-                    </div>
-                    <div v-if="input?.new_string" class="space-y-1">
-                        <div class="text-green-400 font-medium">Added:</div>
-                        <pre class="font-mono text-green-300 bg-green-950/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
-                    </div>
-                </template>
+                <span
+                    v-if="resultSummary"
+                    class="ml-auto text-xs text-slate-500 flex-shrink-0"
+                >
+                    {{ resultSummary }}
+                </span>
+            </button>
 
-                <!-- Read -->
-                <template v-else-if="toolName === 'Read'">
-                    <div class="text-slate-500">File read:</div>
-                    <pre class="font-mono text-slate-300 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ input?.file_path || label }}</pre>
-                </template>
+            <!-- Expanded details -->
+            <div
+                v-if="expanded && hasExpandable"
+                class="mt-2 space-y-3"
+            >
+                <!-- Input -->
+                <div v-if="input">
+                    <div class="text-xs font-medium text-slate-400 mb-1">Input</div>
 
-                <!-- Generic input -->
-                <template v-else-if="input">
-                    <div class="text-slate-500">Input:</div>
-                    <pre class="font-mono text-slate-300 bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-60">{{ prettyInput }}</pre>
-                </template>
+                    <!-- Bash command -->
+                    <template v-if="toolName === 'Bash'">
+                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input?.command }}</pre>
+                    </template>
 
-                <!-- Result -->
-                <template v-if="result">
-                    <div :class="isError ? 'text-error' : 'text-slate-500'">
-                        {{ isError ? 'Error:' : 'Result:' }}
+                    <!-- Write file content -->
+                    <template v-else-if="toolName === 'Write'">
+                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72">{{ input?.content }}</pre>
+                    </template>
+
+                    <!-- Edit diff -->
+                    <template v-else-if="toolName === 'Edit'">
+                        <div v-if="input?.old_string" class="mb-2">
+                            <div class="text-[10px] uppercase tracking-wide text-red-400 font-semibold mb-1">Removed</div>
+                            <pre class="text-xs font-mono text-red-200 bg-red-950/40 border border-red-900/30 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input.old_string }}</pre>
+                        </div>
+                        <div v-if="input?.new_string">
+                            <div class="text-[10px] uppercase tracking-wide text-green-400 font-semibold mb-1">Added</div>
+                            <pre class="text-xs font-mono text-green-200 bg-green-950/40 border border-green-900/30 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input.new_string }}</pre>
+                        </div>
+                    </template>
+
+                    <!-- Read -->
+                    <template v-else-if="toolName === 'Read'">
+                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{{ input?.file_path || description }}</pre>
+                    </template>
+
+                    <!-- Generic input -->
+                    <template v-else>
+                        <pre class="text-xs font-mono text-slate-300 bg-slate-900/80 border border-slate-700/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72">{{ prettyInput }}</pre>
+                    </template>
+                </div>
+
+                <!-- Output -->
+                <div v-if="result">
+                    <div
+                        class="text-xs font-medium mb-1"
+                        :class="isError ? 'text-red-400' : 'text-slate-400'"
+                    >
+                        Output
                     </div>
                     <pre
-                        class="font-mono bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-48"
-                        :class="isError ? 'text-red-300' : 'text-slate-400'"
+                        class="text-xs font-mono border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-72"
+                        :class="isError
+                            ? 'text-red-200 bg-red-950/40 border-red-900/30'
+                            : 'text-slate-300 bg-slate-900/80 border-slate-700/50'"
                     >{{ result }}</pre>
-                </template>
+                </div>
             </div>
         </div>
     </div>
