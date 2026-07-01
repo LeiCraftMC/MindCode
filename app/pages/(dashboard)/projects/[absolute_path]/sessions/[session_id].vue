@@ -353,6 +353,25 @@ ws.onEvent(async (event) => {
             messages.value.push({ role: 'tool', content: event.summary || 'Tool operation completed', id: Date.now() });
             break;
         }
+        case 'tool_result': {
+            const lastAssistant = messages.value.slice().reverse().find(m => m.role === 'assistant');
+            const target = lastAssistant?.toolCalls?.find(t => t.tool_use_id === event.tool_use_id);
+            if (target) {
+                target.result = event.content;
+                target.isError = event.isError;
+            } else {
+                // No matching tool call visible yet; create a minimal fallback entry so the
+                // result is not lost.
+                lastAssistant?.toolCalls?.push({
+                    name: 'Result',
+                    input: {},
+                    tool_use_id: event.tool_use_id,
+                    result: event.content,
+                    isError: event.isError,
+                });
+            }
+            break;
+        }
         case 'permission_request':
             pendingPermissions.value.push(event);
             break;

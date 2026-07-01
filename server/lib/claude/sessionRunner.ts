@@ -287,6 +287,7 @@ export class ClaudeSessionRunner {
             supportedDialogKinds: ['refusal_fallback_prompt', 'side_question'],
             onElicitation: (request, opts) => this.parkElicitationRequest(peer, session, request, opts),
             toolConfig: { askUserQuestion: { previewFormat: 'markdown' } },
+            forwardSubagentText: true,
         };
 
         // Drop undefined values so the SDK uses its own defaults.
@@ -571,8 +572,8 @@ export class ClaudeSessionRunner {
         const result: PermissionResult = msg.behavior === 'allow'
             ? {
                 behavior: 'allow',
-                updatedInput: msg.updatedInput,
-                updatedPermissions: msg.updatedPermissions ? this.toSDKPermissionUpdates(msg.updatedPermissions) : undefined,
+                updatedInput: msg.updatedInput ?? {},
+                updatedPermissions: msg.updatedPermissions ? this.toSDKPermissionUpdates(msg.updatedPermissions) : [],
             }
             : {
                 behavior: 'deny',
@@ -742,6 +743,37 @@ export class ClaudeSessionRunner {
                 reason: message.decision_reason || message.message,
             };
             this.sendToClient(peer, denied);
+        } else if (message.type === 'user') {
+            // The SDK may stream user messages containing tool_result blocks (subagent/tool
+            // answers while a turn is still running). Forward them so they render live.
+            const userMsg = message.message;
+            if (Array.isArray(userMsg?.content)) {
+                for (const part of userMsg.content) {
+                    if (part.type === 'tool_result' && part.tool_use_id) {
+                        const resultText = typeof part.content === 'string'
+                            ? part.content
+                            : Array.isArray(part.content)
+                                ? part.content.map((p: any) => typeof p === 'string' ? p : p?.text || '').join('')
+                                : '';
+                        this.sendToClient(peer, {
+                            type: 'tool_result',
+                            tool_use_id: part.tool_use_id,
+                            content: resultText,
+                            isError: !!part.is_error,
+                        });
+                    } else if (part.type === 'text') {
+                        this.sendToClient(peer, {
+                            type: 'user',
+                            content: part.text,
+                        });
+                    }
+                }
+            } else if (typeof userMsg?.content === 'string') {
+                this.sendToClient(peer, {
+                    type: 'user',
+                    content: userMsg.content,
+                });
+            }
         } else if (message.type === 'system') {
             this.sendToClient(peer, {
                 type: 'system',

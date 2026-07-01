@@ -8,7 +8,7 @@ import type {
     ClientToServerMessage,
 } from '#shared/types/claude-ws';
 
-export type ClaudeWSEvent = ServerToClientMessage;
+export type ClaudeWSEvent = ServerToClientMessage | { type: 'tool_result'; tool_use_id: string; content: string; isError?: boolean };
 
 export interface SlashCommand {
     name: string;
@@ -185,7 +185,11 @@ export function useClaudeWebSocket() {
     }
 
     function sendPermissionResponse(requestId: string, behavior: 'allow' | 'deny', extras?: Omit<PermissionResponseMessage, 'type' | 'requestId' | 'behavior'>): boolean {
-        return send({ type: 'permission_response', requestId, behavior, ...extras });
+        const msg: Record<string, any> = { type: 'permission_response', requestId, behavior };
+        if (extras?.updatedInput !== undefined) msg.updatedInput = extras.updatedInput;
+        if (extras?.updatedPermissions !== undefined) msg.updatedPermissions = extras.updatedPermissions;
+        if (extras?.message !== undefined) msg.message = extras.message;
+        return send(msg as PermissionResponseMessage);
     }
 
     function sendQuestionResponse(requestId: string, answers: Record<string, string>, extras?: Omit<QuestionResponseMessage, 'type' | 'requestId' | 'answers'>): boolean {
