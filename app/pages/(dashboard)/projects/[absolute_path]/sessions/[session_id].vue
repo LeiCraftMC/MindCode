@@ -735,8 +735,8 @@ watch(messages, () => {
                                         v-if="msg.content || msg.thinking || msg.isStreaming"
                                         class="flex gap-2"
                                     >
-                                        <div class="flex flex-col items-center flex-shrink-0 pt-1.5">
-                                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400" title="Claude" />
+                                        <div class="flex flex-col items-center flex-shrink-0">
+                                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400 mt-[3px]" title="Claude" />
                                             <div class="w-px flex-1 bg-slate-700/50 mt-1 min-h-[12px]" />
                                         </div>
 
